@@ -185,9 +185,6 @@ tests/snapshots/
 # Ruff
 .ruff_cache/
 
-# uv
-uv.lock
-
 # AI/IDE artifacts
 .aider*
 .claude*
