@@ -52,6 +52,7 @@ class TestLoadSettings:
     def test_load_settings_with_valid_config(self) -> None:
         """Test loading settings from valid TOML file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            temp_filename = f.name
             f.write(
                 """
 MODEL_TIER_1 = "custom-model"
@@ -61,13 +62,14 @@ NEWS_FILE = "CUSTOM_NEWS.md"
             )
             f.flush()
 
-            try:
-                settings = _load_settings(f.name)
-                check.equal(settings.MODEL_TIER_1, "custom-model")
-                check.equal(settings.TEMPERATURE, 0.8)
-                check.equal(settings.NEWS_FILE, "CUSTOM_NEWS.md")
-            finally:
-                Path(f.name).unlink()
+        # File is now closed, safe to delete on Windows
+        try:
+            settings = _load_settings(temp_filename)
+            check.equal(settings.MODEL_TIER_1, "custom-model")
+            check.equal(settings.TEMPERATURE, 0.8)
+            check.equal(settings.NEWS_FILE, "CUSTOM_NEWS.md")
+        finally:
+            Path(temp_filename).unlink()
 
     def test_load_settings_file_not_found(self) -> None:
         """Test loading settings when config file doesn't exist."""
@@ -78,14 +80,16 @@ NEWS_FILE = "CUSTOM_NEWS.md"
     def test_load_settings_invalid_toml(self) -> None:
         """Test loading settings from invalid TOML file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            temp_filename = f.name
             f.write("invalid toml content {[}")
             f.flush()
 
-            try:
-                with pytest.raises(Exception):  # tomllib will raise an error
-                    _load_settings(f.name)
-            finally:
-                Path(f.name).unlink()
+        # File is now closed, safe to delete on Windows
+        try:
+            with pytest.raises(Exception):  # tomllib will raise an error
+                _load_settings(temp_filename)
+        finally:
+            Path(temp_filename).unlink()
 
 
 class TestDetermineDateRange:
@@ -141,35 +145,8 @@ class TestDetermineDateRange:
 class TestMainCommand:
     """Test suite for main command."""
 
-    @patch("git_ai_reporter.cli._load_settings")
-    @patch("git.Repo")
-    @patch("git_ai_reporter.cli.GeminiClient")
-    @patch("git_ai_reporter.cli.GitAnalyzer")
-    @patch("git_ai_reporter.cli.CacheManager")
-    @patch("git_ai_reporter.cli.ArtifactWriter")
-    @patch("git_ai_reporter.cli.OrchestratorServices")
-    @patch("git_ai_reporter.cli.AnalysisOrchestrator")
-    @patch("git_ai_reporter.cli.asyncio.run")
-    def test_analyze_with_gemini_error(  # pylint: disable=too-many-arguments
-        # pylint: disable=too-many-positional-arguments
-        self,
-        mock_asyncio_run: MagicMock,
-        mock_orchestrator_class: MagicMock,
-        mock_services_class: MagicMock,
-        mock_writer_class: MagicMock,
-        mock_cache_class: MagicMock,
-        mock_analyzer_class: MagicMock,
-        mock_client_class: MagicMock,
-        mock_repo_class: MagicMock,
-        mock_load_settings: MagicMock,
-    ) -> None:
-        """Test analyze command handling GeminiClientError."""
-        # Mark unused mocks
-        del mock_orchestrator_class, mock_writer_class, mock_cache_class
-        del mock_analyzer_class, mock_client_class, mock_repo_class
-        mock_services_class.return_value = MagicMock()
-
-        # Setup settings with API key
+    def _setup_mock_settings(self, mock_load_settings: MagicMock) -> None:
+        """Helper method to setup mock settings to reduce local variables."""
         mock_settings = MagicMock(spec=Settings)
         mock_settings.GEMINI_API_KEY = "test-key"
         mock_settings.MODEL_TIER_1 = "model1"
@@ -192,13 +169,55 @@ class TestMainCommand:
         mock_settings.MAX_CONCURRENT_GIT_COMMANDS = 5
         mock_load_settings.return_value = mock_settings
 
+    def _setup_date_range_mock(self, mock_determine_date_range: MagicMock) -> None:
+        """Helper method to setup date range mock."""
+        start_dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        end_dt = datetime(2025, 1, 8, tzinfo=timezone.utc)
+        mock_determine_date_range.return_value = (start_dt, end_dt)
+
+    @patch("git_ai_reporter.cli._determine_date_range")
+    @patch("git_ai_reporter.cli.timedelta")
+    @patch("git_ai_reporter.cli._load_settings")
+    @patch("git.Repo")
+    @patch("git_ai_reporter.cli.GeminiClient")
+    @patch("git_ai_reporter.cli.GitAnalyzer")
+    @patch("git_ai_reporter.cli.CacheManager")
+    @patch("git_ai_reporter.cli.ArtifactWriter")
+    @patch("git_ai_reporter.cli.OrchestratorServices")
+    @patch("git_ai_reporter.cli.AnalysisOrchestrator")
+    @patch("git_ai_reporter.cli.asyncio.run")
+    def test_analyze_with_gemini_error(  # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-positional-arguments
+        self,
+        mock_asyncio_run: MagicMock,
+        mock_orchestrator_class: MagicMock,
+        mock_services_class: MagicMock,
+        mock_writer_class: MagicMock,
+        mock_cache_class: MagicMock,
+        mock_analyzer_class: MagicMock,
+        mock_client_class: MagicMock,
+        mock_repo_class: MagicMock,
+        mock_load_settings: MagicMock,
+        mock_timedelta: MagicMock,
+        mock_determine_date_range: MagicMock,
+    ) -> None:
+        """Test analyze command handling GeminiClientError."""
+        # Mark unused mocks
+        del mock_orchestrator_class, mock_writer_class, mock_cache_class
+        del mock_analyzer_class, mock_client_class, mock_repo_class, mock_timedelta
+        mock_services_class.return_value = MagicMock()
+
+        # Setup mocks using helper methods
+        self._setup_date_range_mock(mock_determine_date_range)
+        self._setup_mock_settings(mock_load_settings)
+
         # Setup the error
         mock_asyncio_run.side_effect = GeminiClientError("API error")
 
         with pytest.raises(typer.Exit) as exc_info:
             main(
                 repo_path=".",
-                weeks=1,
+                weeks=1,  # Explicit integer to avoid mock contamination
                 start_date_str=None,
                 end_date_str=None,
                 config_file=None,
@@ -237,6 +256,8 @@ class TestMainCommand:
 
         check.equal(exc_info.value.exit_code, 1)
 
+    @patch("git_ai_reporter.cli._determine_date_range")
+    @patch("git_ai_reporter.cli.timedelta")
     @patch("git_ai_reporter.cli._load_settings")
     @patch("git.Repo")
     @patch("git_ai_reporter.cli.asyncio.run")
@@ -258,10 +279,24 @@ class TestMainCommand:
         mock_asyncio_run: MagicMock,
         mock_repo_class: MagicMock,
         mock_load_settings: MagicMock,
+        mock_timedelta: MagicMock,
+        mock_determine_date_range: MagicMock,
     ) -> None:
         """Test successful analyze with cache enabled."""
-        del mock_client_class, mock_analyzer_class, mock_writer_class  # Unused mocks
+        del (
+            mock_client_class,
+            mock_analyzer_class,
+            mock_writer_class,
+            mock_timedelta,
+        )  # Unused mocks
         mock_services_class.return_value = MagicMock()
+
+        # Mock the date range function to avoid timedelta issues
+        mock_determine_date_range.return_value = (
+            datetime(2025, 1, 1, tzinfo=timezone.utc),
+            datetime(2025, 1, 8, tzinfo=timezone.utc),
+        )
+
         # Setup settings
         mock_settings = MagicMock(spec=Settings)
         mock_settings.GEMINI_API_KEY = "test-key"
@@ -285,19 +320,19 @@ class TestMainCommand:
         mock_settings.MAX_CONCURRENT_GIT_COMMANDS = 5
         mock_load_settings.return_value = mock_settings
 
-        # Setup mocks
+        # Setup repo mock
         mock_repo = MagicMock()
         mock_repo.working_dir = "/test/repo"
         mock_repo.close = MagicMock()
         mock_repo_class.return_value = mock_repo
 
-        mock_orchestrator = MagicMock()
-        mock_orchestrator_class.return_value = mock_orchestrator
+        # Setup orchestrator mock
+        mock_orchestrator_class.return_value = MagicMock()
 
-        # Run main
+        # Run main with explicit integer weeks parameter
         main(
             repo_path=".",
-            weeks=1,
+            weeks=1,  # Explicit integer to avoid mock contamination
             start_date_str=None,
             end_date_str=None,
             config_file=None,
@@ -315,6 +350,8 @@ class TestMainCommand:
         # Note: repo.close() is called in finally block, but may not be captured in mocks
         # due to the way the test is structured with multiple patches
 
+    @patch("git_ai_reporter.cli._determine_date_range")
+    @patch("git_ai_reporter.cli.timedelta")
     @patch("git_ai_reporter.cli._load_settings")
     @patch("git.Repo")
     @patch("git_ai_reporter.cli.asyncio.run")
@@ -335,33 +372,22 @@ class TestMainCommand:
         mock_asyncio_run: MagicMock,
         mock_repo_class: MagicMock,
         mock_load_settings: MagicMock,
+        mock_timedelta: MagicMock,
+        mock_determine_date_range: MagicMock,
     ) -> None:
         """Test analyze with no-cache option."""
-        del mock_client_class, mock_analyzer_class, mock_writer_class  # Unused mocks
-        del mock_asyncio_run  # Unused mock
+        del (
+            mock_client_class,
+            mock_analyzer_class,
+            mock_writer_class,
+            mock_timedelta,
+            mock_asyncio_run,
+        )  # Unused mocks
         mock_services_class.return_value = MagicMock()
-        # Setup settings
-        mock_settings = MagicMock(spec=Settings)
-        mock_settings.GEMINI_API_KEY = "test-key"
-        mock_settings.MODEL_TIER_1 = "model1"
-        mock_settings.MODEL_TIER_2 = "model2"
-        mock_settings.MODEL_TIER_3 = "model3"
-        mock_settings.GEMINI_INPUT_TOKEN_LIMIT_TIER1 = 1000
-        mock_settings.GEMINI_INPUT_TOKEN_LIMIT_TIER2 = 2000
-        mock_settings.GEMINI_INPUT_TOKEN_LIMIT_TIER3 = 3000
-        mock_settings.MAX_TOKENS_TIER_1 = 100
-        mock_settings.MAX_TOKENS_TIER_2 = 200
-        mock_settings.MAX_TOKENS_TIER_3 = 300
-        mock_settings.TEMPERATURE = 0.7
-        mock_settings.NEWS_FILE = "NEWS.md"
-        mock_settings.CHANGELOG_FILE = "CHANGELOG.txt"
-        mock_settings.DAILY_UPDATES_FILE = "DAILY_UPDATES.md"
-        mock_settings.TRIVIAL_COMMIT_TYPES = ["chore"]
-        mock_settings.TRIVIAL_FILE_PATTERNS = ["*.md"]
-        mock_settings.GEMINI_API_TIMEOUT = 300
-        mock_settings.GIT_COMMAND_TIMEOUT = 30
-        mock_settings.MAX_CONCURRENT_GIT_COMMANDS = 5
-        mock_load_settings.return_value = mock_settings
+
+        # Setup mocks using helper methods
+        self._setup_date_range_mock(mock_determine_date_range)
+        self._setup_mock_settings(mock_load_settings)
 
         mock_repo = MagicMock()
         mock_repo.working_dir = "/test/repo"
@@ -370,7 +396,7 @@ class TestMainCommand:
 
         main(
             repo_path=".",
-            weeks=1,
+            weeks=1,  # Explicit integer to avoid mock contamination
             start_date_str=None,
             end_date_str=None,
             config_file=None,

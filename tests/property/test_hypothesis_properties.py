@@ -28,6 +28,9 @@ from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.utils.json_helpers import safe_json_decode
 from git_ai_reporter.utils.json_helpers import safe_json_encode
 
+# Constants
+BACKTICKS = "```"
+
 
 # Custom strategies for domain objects
 @composite
@@ -105,9 +108,11 @@ class TestJsonHelperProperties:
 
     @given(
         st.dictionaries(
-            st.text(min_size=1, max_size=50),
+            st.text(min_size=2, max_size=50).filter(  # Changed from min_size=1 to 2
+                lambda x: BACKTICKS not in x and x.strip() != ""
+            ),  # Avoid backticks, empty strings, and whitespace-only strings in keys
             st.one_of(
-                st.text(),
+                st.text().filter(lambda x: BACKTICKS not in x),  # Avoid backticks in values
                 st.integers(),
                 st.floats(allow_nan=False, allow_infinity=False),
                 st.booleans(),

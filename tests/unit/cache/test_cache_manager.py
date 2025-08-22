@@ -71,7 +71,7 @@ class TestCacheManager:
         cache_file = cache_manager._commits_path / f"{hexsha}.json"
 
         # Write corrupted JSON
-        cache_file.write_text("{'not': 'valid json'")
+        cache_file.write_text("{'not': 'valid json'", encoding="utf-8")
 
         result = await cache_manager.get_commit_analysis(hexsha)
         check.is_none(result)
@@ -82,7 +82,7 @@ class TestCacheManager:
         cache_file = cache_manager._commits_path / f"{hexsha}.json"
 
         # Write valid JSON but invalid schema
-        cache_file.write_text('{"wrong_field": "value"}')
+        cache_file.write_text('{"wrong_field": "value"}', encoding="utf-8")
 
         result = await cache_manager.get_commit_analysis(hexsha)
         check.is_none(result)

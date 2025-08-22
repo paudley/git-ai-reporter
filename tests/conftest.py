@@ -8,10 +8,11 @@ This file contains fixtures and configuration that are available to all tests.
 
 from collections.abc import Iterator
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
-from typing import Any
+from typing import Any, Final
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -21,6 +22,9 @@ import pytest
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Constants
+WINDOWS_OS_NAME: Final[str] = "nt"
 
 # pylint: disable=wrong-import-position
 from git_ai_reporter.models import AnalysisResult  # noqa: E402
@@ -49,14 +53,26 @@ def temp_git_repo(temp_dir: Path) -> git.Repo:  # pylint: disable=redefined-oute
     Returns:
         git.Repo: Initialized git repository.
     """
-    repo = git.Repo.init(temp_dir)
+    # Resolve to absolute path to avoid path issues in CI
+    # Use expanduser and resolve to get consistent path format across platforms
+    absolute_temp_dir = temp_dir.expanduser().resolve()
+
+    # On Windows, ensure consistent path format
+    if os.name == WINDOWS_OS_NAME:  # Windows
+        # Convert to string and back to normalize path separators and case
+        normalized_path = os.path.normpath(os.path.abspath(str(absolute_temp_dir)))
+        absolute_temp_dir = Path(normalized_path)
+
+    repo = git.Repo.init(absolute_temp_dir)
     repo.config_writer().set_value("user", "name", "Test User").release()
     repo.config_writer().set_value("user", "email", "test@example.com").release()
 
-    # Create initial commit
-    readme = temp_dir / "README.md"
-    readme.write_text("# Test Repository\n")
-    repo.index.add([str(readme)])
+    # Create initial commit with proper path handling
+    readme = absolute_temp_dir / "README.md"
+    readme.write_text("# Test Repository\n", encoding="utf-8")
+
+    # Use relative path for git index to avoid absolute path issues
+    repo.index.add(["README.md"])
     repo.index.commit("Initial commit")
 
     return repo

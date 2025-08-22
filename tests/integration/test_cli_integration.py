@@ -11,6 +11,7 @@ from datetime import datetime
 from datetime import timezone
 import os
 from pathlib import Path
+import re
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -41,7 +42,7 @@ def temp_git_repo(tmp_path: Path) -> git.Repo:
 
     # Create initial commit
     readme_file = tmp_path / "README.md"
-    readme_file.write_text("# Test Project\n")
+    readme_file.write_text("# Test Project\n", encoding="utf-8")
     repo.index.add(["README.md"])
     repo.index.commit("Initial commit")
 
@@ -49,7 +50,7 @@ def temp_git_repo(tmp_path: Path) -> git.Repo:
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     main_file = src_dir / "main.py"
-    main_file.write_text("# Hello, World!\n")
+    main_file.write_text("# Hello, World!\n", encoding="utf-8")
     repo.index.add(["src/main.py"])
     repo.index.commit("feat: Add main.py")
 
@@ -81,10 +82,13 @@ class TestCLIIntegration:
         result = cli_runner.invoke(APP, ["--help"])
         check.equal(result.exit_code, 0)
         check.is_in("Usage:", result.stdout)
-        # Rich formatting might affect "Options:" text
-        check.is_in("--repo-path", result.stdout)
-        check.is_in("--weeks", result.stdout)
-        check.is_in("--start-date", result.stdout)
+        # Check for key option names with more lenient matching
+        # Strip ANSI escape sequences for cross-platform compatibility
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        stdout_clean = ansi_escape.sub("", result.stdout).replace("\n", " ").replace("\r", " ")
+        check.is_in("--repo-path", stdout_clean)
+        check.is_in("--weeks", stdout_clean)
+        check.is_in("--start-date", stdout_clean)
 
     def test_version_command(
         self, cli_runner: CliRunner  # pylint: disable=redefined-outer-name

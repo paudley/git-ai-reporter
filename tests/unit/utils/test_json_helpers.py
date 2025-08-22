@@ -245,7 +245,8 @@ class TestSafeJsonEncode:
         data = {"path": p}
         json_str = safe_json_encode(data)
         decoded = json.loads(json_str)
-        check.equal(decoded["path"], "/home/user/file.txt")
+        # Use as_posix() for cross-platform path comparison
+        check.equal(decoded["path"], p.as_posix())
 
     def test_mixed_special_types(self) -> None:
         """Test serialization of multiple special types together."""
@@ -263,7 +264,9 @@ class TestSafeJsonEncode:
         check.equal(decoded["date"], "2025-01-07")
         check.equal(decoded["decimal"], "99.99")
         check.equal(decoded["uuid"], "deadbeef-dead-beef-dead-beefdeadbeef")
-        check.equal(decoded["path"], "/tmp/test")  # nosec B108 - Test data
+        # Use as_posix() for cross-platform path comparison
+        test_path = Path("/tmp/test")  # nosec B108 - Test only
+        check.equal(decoded["path"], test_path.as_posix())
         check.equal(decoded["normal"], "string")
 
     def test_indent_parameter(self) -> None:

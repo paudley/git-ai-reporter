@@ -28,7 +28,7 @@ class TestAsyncWriteFileAtomic:
 
         check.is_true(result)
         check.is_true(target_file.exists())
-        check.equal(target_file.read_text(), content)
+        check.equal(target_file.read_text(encoding="utf-8"), content)
 
     @pytest.mark.asyncio
     async def test_atomic_write_overwrites_existing(self, tmp_path: Path) -> None:
@@ -40,7 +40,7 @@ class TestAsyncWriteFileAtomic:
         result = await async_write_file_atomic(target_file, new_content)
 
         check.is_true(result)
-        check.equal(target_file.read_text(), new_content)
+        check.equal(target_file.read_text(encoding="utf-8"), new_content)
 
     @pytest.mark.asyncio
     async def test_atomic_write_with_unicode(self, tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ class TestAsyncWriteFileAtomic:
 
         check.is_true(result)
         check.is_true(target_file.exists())
-        check.equal(target_file.read_text(), content)
+        check.equal(target_file.read_text(encoding="utf-8"), content)
 
     @pytest.mark.asyncio
     async def test_atomic_write_permission_error(self, tmp_path: Path) -> None:
@@ -100,7 +100,7 @@ class TestAsyncWriteFileAtomic:
         result = await async_write_file_atomic(target_file, content)  # Path object
 
         check.is_true(result)
-        check.equal(target_file.read_text(), content)
+        check.equal(target_file.read_text(encoding="utf-8"), content)
 
     @pytest.mark.asyncio
     async def test_atomic_write_with_string_path(self, tmp_path: Path) -> None:
@@ -111,7 +111,7 @@ class TestAsyncWriteFileAtomic:
         result = await async_write_file_atomic(str(target_file), content)  # String path
 
         check.is_true(result)
-        check.equal(target_file.read_text(), content)
+        check.equal(target_file.read_text(encoding="utf-8"), content)
 
 
 class TestAsyncFileExistsWithContent:

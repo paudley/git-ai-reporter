@@ -116,7 +116,7 @@ class TestArtifactWriter:
 
         await artifact_writer.update_daily_updates_file(["### 2025-01-02\n\nNew daily update"])
 
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
         check.is_in("Old updates here", content)
         check.is_in("New daily update", content)
 
@@ -174,7 +174,7 @@ class TestArtifactWriter:
 
         await artifact_writer.update_changelog_file(entries)
 
-        content = (temp_dir / "CHANGELOG.txt").read_text()
+        content = (temp_dir / "CHANGELOG.txt").read_text(encoding="utf-8")
         check.is_in("Add user authentication", content)
         check.is_in("Fix login timeout", content)
         check.is_in("Fix SQL injection", content)
@@ -223,9 +223,9 @@ class TestArtifactWriter:
         check.is_true((temp_dir / "CHANGELOG.txt").exists())
         check.is_true((temp_dir / "DAILY_UPDATES.md").exists())
 
-        check.greater(len((temp_dir / "NEWS.md").read_text()), 0)
-        check.greater(len((temp_dir / "CHANGELOG.txt").read_text()), 0)
-        check.greater(len((temp_dir / "DAILY_UPDATES.md").read_text()), 0)
+        check.greater(len((temp_dir / "NEWS.md").read_text(encoding="utf-8")), 0)
+        check.greater(len((temp_dir / "CHANGELOG.txt").read_text(encoding="utf-8")), 0)
+        check.greater(len((temp_dir / "DAILY_UPDATES.md").read_text(encoding="utf-8")), 0)
 
     def test_format_timestamp(self) -> None:
         """Test timestamp formatting."""
@@ -294,7 +294,7 @@ class TestArtifactWriter:
         await artifact_writer._insert_content_after_header(test_file, content_to_insert, header)
 
         # Verify the file was read (lines 127-128) and processed (lines 134-142)
-        result = test_file.read_text()
+        result = test_file.read_text(encoding="utf-8")
         check.is_in("New content block", result)
         check.is_in("Existing content line 1", result)
         check.is_in("Existing content line 2", result)
@@ -317,7 +317,7 @@ class TestArtifactWriter:
         await artifact_writer._insert_content_after_header(test_file, content_to_insert, header)
 
         # Verify the content was inserted at the correct position
-        result = test_file.read_text()
+        result = test_file.read_text(encoding="utf-8")
 
         # Should find first non-empty line and insert after it
         check.is_in("Inserted content", result)
@@ -338,6 +338,6 @@ class TestArtifactWriter:
         await artifact_writer._insert_content_after_header(test_file, content_to_insert, header)
 
         # Verify file was created with header and content
-        result = test_file.read_text()
+        result = test_file.read_text(encoding="utf-8")
         check.is_in("# New Header", result)
         check.is_in("New content", result)

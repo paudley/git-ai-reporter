@@ -60,7 +60,7 @@ class TestRefactoredArtifactWriter:
 
         news_file = tmp_path / "NEWS.md"
         assert news_file.exists()
-        content = news_file.read_text()
+        content = news_file.read_text(encoding="utf-8")
         assert TEST_NARRATIVE in content
 
     @pytest.mark.asyncio
@@ -119,6 +119,6 @@ class TestRefactoredArtifactWriter:
 
         daily_file = tmp_path / "DAILY_UPDATES.md"
         assert daily_file.exists()
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
         assert FIRST_DAY_SUMMARY in content
         assert SECOND_DAY_SUMMARY in content

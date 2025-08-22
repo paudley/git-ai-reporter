@@ -190,6 +190,7 @@ tests/snapshots/
 .claude*
 .mcp*
 CLAUDE.local.md
+CLAUDE.md
 
 # Local configuration
 config.yaml

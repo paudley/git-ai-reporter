@@ -211,7 +211,7 @@ New year's day coding.
 
         # Check the file was created
         check.is_true(nested_path.exists())
-        content = nested_path.read_text()
+        content = nested_path.read_text(encoding="utf-8")
         check.is_in("Test narrative", content)
 
     @pytest.mark.asyncio
@@ -236,7 +236,7 @@ New year's day coding.
 
         # Check the file was created
         check.is_true(nested_path.exists())
-        content = nested_path.read_text()
+        content = nested_path.read_text(encoding="utf-8")
         check.is_in("# Changelog", content)
         check.is_in("## [Unreleased]", content)
         # The artifact writer formats new entries under appropriate categories
@@ -265,7 +265,7 @@ New year's day coding.
 
         # Check the file was created
         check.is_true(nested_path.exists())
-        content = nested_path.read_text()
+        content = nested_path.read_text(encoding="utf-8")
         check.is_in("# Daily Updates", content)
         check.is_in("### 2025-01-01", content)
         check.is_in("First day summary", content)

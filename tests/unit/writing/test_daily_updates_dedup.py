@@ -101,7 +101,7 @@ Existing summary for August 9.
 
         await artifact_writer.update_daily_updates_file(new_summaries)
 
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
 
         # Check that the file has proper structure
         check.is_in("# Daily Updates", content)
@@ -138,7 +138,7 @@ Existing summary for August 9.
         await artifact_writer.update_daily_updates_file(summaries)
 
         daily_file = tmp_path / "DAILY_UPDATES.md"
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
 
         # Extract dates in order from the file
 
@@ -174,7 +174,7 @@ This was a very productive day with multiple team members contributing."""
         await artifact_writer.update_daily_updates_file([summary])
 
         daily_file = tmp_path / "DAILY_UPDATES.md"
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
 
         # Check that the entire multiline summary is preserved
         check.is_in("Major refactoring completed today", content)
@@ -215,7 +215,7 @@ Summary for August 3.
 
         await artifact_writer.update_daily_updates_file(new_summaries)
 
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
 
         # Extract dates in order
 
@@ -263,5 +263,5 @@ Summary for August 9.
         await artifact_writer.update_daily_updates_file([])
 
         # File should not be modified
-        content = daily_file.read_text()
+        content = daily_file.read_text(encoding="utf-8")
         check.equal(content, original_content)
