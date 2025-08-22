@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # For trusted publishing to PyPI
+
+jobs:
+  build:
+    name: Build Distribution
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    
+    - name: Set up Python
+      uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
+      with:
+        python-version: '3.12'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@cc8b0e4e1b85e4ce0a6bbe1a1e0c5db7906a9b1c # v3.2.5
+      with:
+        enable-cache: true
+        
+    - name: Install build dependencies
+      run: |
+        uv tool install build
+        uv tool install twine
+        
+    - name: Build package
+      run: |
+        uv tool run python -m build
+        
+    - name: Check package
+      run: |
+        uv tool run twine check dist/*
+        
+    - name: Generate artifact attestation
+      uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a7d5e71dd # v1.4.3
+      with:
+        subject-path: 'dist/*'
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: dist
+        path: dist/
+        retention-days: 90
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/git-ai-reporter
+    permissions:
+      id-token: write
+      
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@15c56dba361d8335944d31a2ecd17d700fc7bcbc # release/v1.12.2
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build, publish-testpypi]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/git-ai-reporter
+    permissions:
+      id-token: write
+      
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@15c56dba361d8335944d31a2ecd17d700fc7bcbc # release/v1.12.2
+
+  create-release:
+    name: Create GitHub Release
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@c062e08bd532815e2082a85bb2a4e87b9c3b3d95 # v2.2.0
+      with:
+        files: dist/*
+        generate_release_notes: true
+        draft: false
+        prerelease: false

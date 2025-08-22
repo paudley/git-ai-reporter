@@ -1,0 +1,48 @@
+# Include documentation files
+include README.md
+include LICENSE
+include NOTICE
+include CONTRIBUTING.md
+include SECURITY.md
+include PENDING.md
+include .env.example
+
+# Include configuration files
+include pyproject.toml
+include setup.py
+
+# Include all package data
+recursive-include src/git_reporter *.py *.pyi *.md
+
+# Include test files for sdist
+recursive-include tests *.py *.md *.yaml *.jsonl *.feature *.snapshot
+
+# Include documentation
+recursive-include docs *.md
+
+# Include scripts
+recursive-include scripts *.sh *.py
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude .git*
+global-exclude .coverage
+global-exclude .pytest_cache
+global-exclude .mypy_cache
+global-exclude .ruff_cache
+global-exclude *.egg-info
+
+# Exclude generated files (these are created by the tool, not distributed)
+exclude NEWS.md
+exclude CHANGELOG.txt
+exclude DAILY_UPDATES.md
+
+# Exclude development files
+exclude .env
+exclude coverage.xml
+recursive-exclude htmlcov *
+recursive-exclude dist *
+recursive-exclude test_cache *
+recursive-exclude .git-report-cache *

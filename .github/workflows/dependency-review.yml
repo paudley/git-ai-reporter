@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Blackcat Informatics® Inc.
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4.4.0
+      with:
+        # Fail if any vulnerabilities are detected
+        fail-on-severity: moderate
+        # Allow specific licenses
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
+        # Deny problematic licenses
+        deny-licenses: GPL-2.0, GPL-3.0, LGPL-2.1, LGPL-3.0, AGPL-3.0, CC-BY-SA-4.0
+        # Warn on deprecated packages
+        warn-on-deprecated: true
+        # Add summary comment to PR
+        comment-summary-in-pr: always
+        # Vulnerability database configuration
+        vulnerability-check: true
+        # License check configuration
+        license-check: true

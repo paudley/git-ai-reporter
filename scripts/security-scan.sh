@@ -1,0 +1,207 @@
+#!/bin/bash
+# Security scanning script for git-ai-reporter
+# Detects potential secrets, credentials, and sensitive data in staged files
+
+set -e
+
+# Color codes for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+# Initialize findings counter
+FINDINGS=0
+
+# Function to scan a file for potential secrets
+scan_file() {
+    local file=$1
+    local found=0
+    
+    # Skip the security scan script itself (contains patterns, not secrets)
+    if [[ "$file" =~ security-scan\.sh$ ]]; then
+        return 0
+    fi
+    
+    # Skip binary files
+    if file "$file" 2>/dev/null | grep -q "binary"; then
+        return 0
+    fi
+    
+    # Common patterns for secrets and credentials
+    declare -a PATTERNS=(
+        # API Keys and Tokens
+        "api[_-]?key.*=.*['\"][a-zA-Z0-9]{20,}['\"]"
+        "api[_-]?secret.*=.*['\"][a-zA-Z0-9]{20,}['\"]"
+        "access[_-]?token.*=.*['\"][a-zA-Z0-9]{20,}['\"]"
+        "auth[_-]?token.*=.*['\"][a-zA-Z0-9]{20,}['\"]"
+        "bearer.*['\"][a-zA-Z0-9]{20,}['\"]"
+        
+        # AWS
+        "AKIA[0-9A-Z]{16}"
+        "aws[_-]?access[_-]?key[_-]?id.*=.*['\"][A-Z0-9]{20}['\"]"
+        "aws[_-]?secret[_-]?access[_-]?key.*=.*['\"][a-zA-Z0-9/+=]{40}['\"]"
+        
+        # Google/GCP
+        "AIza[0-9A-Za-z\\-_]{35}"
+        "service[_-]?account.*\.json"
+        
+        # GitHub
+        "gh[opsu]_[a-zA-Z0-9]{36}"
+        "github[_-]?token.*=.*['\"][a-zA-Z0-9]{40}['\"]"
+        
+        # Generic Passwords
+        "password.*=.*['\"][^'\"]{8,}['\"]"
+        "passwd.*=.*['\"][^'\"]{8,}['\"]"
+        "pwd.*=.*['\"][^'\"]{8,}['\"]"
+        "secret.*=.*['\"][^'\"]{8,}['\"]"
+        
+        # Private Keys
+        "-----BEGIN RSA PRIVATE KEY-----"
+        "-----BEGIN OPENSSH PRIVATE KEY-----"
+        "-----BEGIN DSA PRIVATE KEY-----"
+        "-----BEGIN EC PRIVATE KEY-----"
+        "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+        
+        # Database URLs with credentials
+        "postgres://[^:]+:[^@]+@"
+        "mysql://[^:]+:[^@]+@"
+        "mongodb://[^:]+:[^@]+@"
+        "redis://[^:]+:[^@]+@"
+        
+        # Slack
+        "xox[baprs]-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]{24,}"
+        
+        # Generic Base64 encoded secrets (min 20 chars)
+        "secret.*=.*['\"][A-Za-z0-9+/]{20,}={0,2}['\"]"
+        
+        # JWT tokens
+        "eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*"
+    )
+    
+    # High entropy string detection (potential secrets)
+    # This catches random-looking strings that might be secrets
+    ENTROPY_PATTERN="['\"][a-zA-Z0-9+/]{32,}['\"]"
+    
+    # Check each pattern
+    for pattern in "${PATTERNS[@]}"; do
+        if grep -qiE "$pattern" "$file" 2>/dev/null; then
+            if [ $found -eq 0 ]; then
+                echo -e "${RED}⚠️  Potential secrets found in $file:${NC}"
+                found=1
+            fi
+            grep -niE "$pattern" "$file" 2>/dev/null | head -3 | while read -r line; do
+                echo -e "  ${YELLOW}Line: $line${NC}"
+            done
+            ((FINDINGS++))
+        fi
+    done
+    
+    # Check for high entropy strings (but be less strict for test files)
+    if [[ ! "$file" =~ test_ ]] && [[ ! "$file" =~ _test\. ]]; then
+        if grep -qE "$ENTROPY_PATTERN" "$file" 2>/dev/null; then
+            # Check if it's likely a real secret (not a hash or test data)
+            local entropy_matches
+            entropy_matches=$(grep -E "$ENTROPY_PATTERN" "$file" | \
+                grep -v "sha256\|md5\|hash\|digest\|test\|example\|sample" | \
+                grep -v "^[[:space:]]*#" | \
+                grep -v "^[[:space:]]*//")
+            
+            if [ -n "$entropy_matches" ]; then
+                if [ $found -eq 0 ]; then
+                    echo -e "${RED}⚠️  High entropy strings found in $file:${NC}"
+                    found=1
+                fi
+                echo "$entropy_matches" | head -3 | while read -r line; do
+                    echo -e "  ${YELLOW}Possible secret: $(echo "$line" | cut -c1-80)...${NC}"
+                done
+                ((FINDINGS++))
+            fi
+        fi
+    fi
+    
+    # Check for temp/backup files that shouldn't be committed
+    case "$file" in
+        *.bak|*.backup|*.tmp|*.temp|*.swp|*~|.env|.env.*)
+            echo -e "${RED}⚠️  Temporary/backup file should not be committed: $file${NC}"
+            ((FINDINGS++))
+            found=1
+            ;;
+    esac
+    
+    # Check for potential PII (Personal Identifiable Information)
+    # Skip PII checks for documentation files that may contain legitimate contact info
+    if [[ "$file" =~ CONTRIBUTING\.md$ ]] || [[ "$file" =~ CODE_OF_CONDUCT\.md$ ]]; then
+        return $found
+    fi
+    
+    declare -a PII_PATTERNS=(
+        # SSN
+        "[0-9]{3}-[0-9]{2}-[0-9]{4}"
+        # Credit card (basic pattern)
+        "[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}"
+        # Email in code (not in comments or markdown files)
+        "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+    )
+    
+    for pattern in "${PII_PATTERNS[@]}"; do
+        if grep -qE "$pattern" "$file" 2>/dev/null; then
+            # Check if it's not in a comment, test file, or markdown file
+            local matches
+            matches=$(grep -E "$pattern" "$file" | \
+                grep -v "^[[:space:]]*#" | \
+                grep -v "^[[:space:]]*//")
+            
+            # Skip email check for markdown files (documentation)
+            if [ -n "$matches" ] && [[ ! "$file" =~ test ]] && [[ ! "$file" =~ \.md$ ]]; then
+                if [ $found -eq 0 ]; then
+                    echo -e "${YELLOW}⚠️  Potential PII found in $file${NC}"
+                    found=1
+                fi
+            fi
+        fi
+    done
+    
+    return $found
+}
+
+# Main execution
+echo "🔒 Running security scan for secrets and credentials..."
+
+# Get list of files to scan (passed as arguments or from git)
+if [ $# -gt 0 ]; then
+    FILES="$*"
+else
+    # Get staged files if no arguments
+    FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || echo "")
+fi
+
+if [ -z "$FILES" ]; then
+    echo "No files to scan"
+    exit 0
+fi
+
+# Scan each file
+for file in $FILES; do
+    if [ -f "$file" ]; then
+        scan_file "$file"
+    fi
+done
+
+# Summary
+echo ""
+if [ $FINDINGS -gt 0 ]; then
+    echo -e "${RED}❌ Security scan found $FINDINGS potential issue(s)${NC}"
+    echo ""
+    echo "If these are false positives, you can:"
+    echo "  1. Move secrets to environment variables"
+    echo "  2. Use a .env file (and add it to .gitignore)"
+    echo "  3. Use a secrets management service"
+    echo "  4. If it's test data, ensure it's clearly marked as such"
+    echo ""
+    echo "To bypass this check (NOT RECOMMENDED):"
+    echo "  git commit --no-verify"
+    exit 1
+else
+    echo -e "${GREEN}✅ Security scan passed - no secrets detected${NC}"
+fi

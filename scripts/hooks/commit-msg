@@ -1,0 +1,19 @@
+#!/bin/bash
+# Commit message validation hook for git-ai-reporter
+# Ensures commit messages follow conventional commit format
+
+set -e
+
+# Get the commit message file
+COMMIT_MSG_FILE=$1
+
+# Get the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Run commit message validation
+if [ -f "$PROJECT_ROOT/scripts/check-quality.sh" ]; then
+    "$PROJECT_ROOT/scripts/check-quality.sh" commit-msg "$COMMIT_MSG_FILE"
+fi
+
+exit 0

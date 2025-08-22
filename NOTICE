@@ -1,0 +1,41 @@
+Git Reporter (DevSummary AI)
+Copyright (c) 2025 Blackcat Informatics® Inc.
+
+This product includes software developed at
+Blackcat Informatics® Inc. (https://blackcatinformatics.ca/).
+
+Licensed under the MIT License. See LICENSE file for details.
+
+## Third-Party Dependencies
+
+This software makes use of the following third-party libraries:
+
+- GitPython: BSD 3-Clause License
+- Pydantic: MIT License
+- Typer: MIT License
+- Google GenAI SDK: Apache License 2.0
+- httpx: BSD 3-Clause License
+- Rich: MIT License
+- pytest and plugins: MIT License
+- Ruff: MIT License
+
+For a complete list of dependencies and their licenses, see pyproject.toml.
+
+## Acknowledgments
+
+Special thanks to:
+- The Python Software Foundation
+- Google for the Gemini AI models
+- The open-source community
+
+All trademarks and registered trademarks mentioned herein are the property
+of their respective owners.
+
+## Address of Record
+
+Blackcat Informatics® Inc.
+112 Westbourne Rd.
+Spruce Grove, AB
+Canada
+
+Blackcat Informatics Inc. is a federally registered Canadian Corporation.

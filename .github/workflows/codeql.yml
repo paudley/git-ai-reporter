@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Blackcat Informatics® Inc.
+
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '27 3 * * 1'  # Weekly on Monday at 3:27 AM UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Code and Workflows
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: python
+          build-mode: none
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@f779452ac5af1c261dcc7404b2828d0d971238bf # v3.27.9
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        queries: +security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@f779452ac5af1c261dcc7404b2828d0d971238bf # v3.27.9
+      with:
+        category: "/language:${{matrix.language}}"
+
+  workflow-analysis:
+    name: Analyze GitHub Actions Workflows
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: Initialize CodeQL for Workflows
+      uses: github/codeql-action/init@f779452ac5af1c261dcc7404b2828d0d971238bf # v3.27.9
+      with:
+        languages: javascript
+        build-mode: none
+        queries: +security-and-quality
+        config: |
+          name: "Workflow Security Analysis"
+          queries:
+            - uses: security-and-quality
+            - uses: security-extended
+
+    - name: Perform Workflow Security Analysis
+      uses: github/codeql-action/analyze@f779452ac5af1c261dcc7404b2828d0d971238bf # v3.27.9
+      with:
+        category: "/language:javascript/workflow-analysis"
