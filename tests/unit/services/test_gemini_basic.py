@@ -34,8 +34,7 @@ EXCEEDS_TARGET_MSG = "exceeds target"
 # MODULE-LEVEL PATCHES (apply to all tests)
 # =============================================================================
 
-# Apply asyncio marker to all tests in this module
-pytestmark = pytest.mark.asyncio
+# No async tests in this module - asyncio marker not needed
 
 
 @pytest.fixture(autouse=True)

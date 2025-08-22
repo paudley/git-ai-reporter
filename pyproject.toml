@@ -160,7 +160,7 @@ addopts = """
     --cov=src/git_ai_reporter
     --cov-report=term-missing
     --cov-report=html
-    --cov-fail-under=30
+    --cov-fail-under=55
     -v
     --tb=short
     --strict-markers
