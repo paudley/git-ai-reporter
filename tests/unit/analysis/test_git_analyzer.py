@@ -68,6 +68,7 @@ def mock_commit() -> MagicMock:
 class TestGitAnalyzer:
     """Test suite for GitAnalyzer class."""
 
+    @pytest.mark.smoke
     def test_init(
         self,
         mock_repo: MagicMock,  # pylint: disable=redefined-outer-name
@@ -83,6 +84,7 @@ class TestGitAnalyzer:
         check.equal(analyzer._git_command_timeout, 300)  # pylint: disable=protected-access
         check.is_false(analyzer._debug)  # pylint: disable=protected-access
 
+    @pytest.mark.smoke
     def test_get_commits_in_range(
         self,
         git_analyzer: GitAnalyzer,  # pylint: disable=redefined-outer-name

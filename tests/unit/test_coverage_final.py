@@ -15,6 +15,7 @@ from httpx import HTTPStatusError
 import pytest
 import typer
 
+from git_ai_reporter import models
 from git_ai_reporter.cli import _setup  # pylint: disable=protected-access,import-private-name
 from git_ai_reporter.config import Settings
 from git_ai_reporter.services.gemini import GeminiClient
@@ -28,6 +29,16 @@ INVALID_JSON_MSG = "Invalid JSON"
 
 class TestCoverage100:
     """Tests to achieve comprehensive coverage."""
+
+    @pytest.mark.smoke
+    def test_core_imports(self) -> None:
+        """Smoke test: Verify core modules can be imported."""
+        # Verify key classes exist
+        assert hasattr(models, "Change")
+        assert hasattr(models, "CommitAnalysis")
+        assert callable(Settings)
+        assert hasattr(json_helpers, "safe_json_decode")
+        assert hasattr(json_helpers, "safe_json_encode")
 
     def test_cli_git_command_error(self) -> None:
         """Test CLI handling of GitCommandError (lines 84-85)."""

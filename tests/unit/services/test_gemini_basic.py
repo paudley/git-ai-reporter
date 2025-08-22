@@ -42,7 +42,7 @@ def patch_wait_exponential_and_sleep():
     """Patch wait_exponential and asyncio.sleep globally to eliminate retry delays in all tests."""
     with (
         patch(
-            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda retry_state: 0
+            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda _retry_state: 0
         ),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
@@ -126,6 +126,7 @@ def mock_malformed_json_response() -> MagicMock:
 class TestGeminiClientInitialization:
     """Tests for client setup and configuration."""
 
+    @pytest.mark.smoke
     def test_init(
         self,
         mock_genai_client: MagicMock,  # pylint: disable=redefined-outer-name
@@ -140,6 +141,7 @@ class TestGeminiClientInitialization:
             client._api_timeout, gemini_config.api_timeout
         )  # pylint: disable=protected-access
 
+    @pytest.mark.smoke
     def test_config_defaults(self) -> None:
         """Test GeminiClientConfig default values."""
         config = GeminiClientConfig()

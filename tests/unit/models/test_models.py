@@ -23,6 +23,7 @@ from git_ai_reporter.models import CommitCategory
 class TestChange:
     """Test suite for the Change model."""
 
+    @pytest.mark.smoke
     def test_valid_change_creation(self) -> None:
         """Test creating a valid Change instance."""
         change = Change(
@@ -41,6 +42,7 @@ class TestChange:
             )
             check.equal(change.category, category)
 
+    @pytest.mark.smoke
     def test_change_with_invalid_category(self) -> None:
         """Test that Change rejects invalid categories."""
         with pytest.raises(ValidationError) as exc_info:
@@ -92,6 +94,7 @@ class TestChange:
 class TestCommitAnalysis:
     """Test suite for the CommitAnalysis model."""
 
+    @pytest.mark.smoke
     def test_valid_commit_analysis_creation(self) -> None:
         """Test creating a valid CommitAnalysis instance."""
         analysis = CommitAnalysis(

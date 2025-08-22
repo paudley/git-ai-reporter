@@ -46,7 +46,7 @@ def patch_wait_exponential_and_sleep():
     """Patch wait_exponential and asyncio.sleep globally to eliminate retry delays in all tests."""
     with (
         patch(
-            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda retry_state: 0
+            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda _retry_state: 0
         ),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):

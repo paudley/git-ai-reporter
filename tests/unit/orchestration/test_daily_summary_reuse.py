@@ -19,6 +19,8 @@ from git_ai_reporter.cache.manager import CacheManager
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.orchestration.orchestrator import AnalysisOrchestrator
+from git_ai_reporter.orchestration.orchestrator import OrchestratorConfig
+from git_ai_reporter.orchestration.orchestrator import OrchestratorServices
 from git_ai_reporter.services.gemini import GeminiClient
 from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 
@@ -81,16 +83,19 @@ def orchestrator_fixture(
 ) -> AnalysisOrchestrator:
     """Create an AnalysisOrchestrator instance for testing."""
     console = MagicMock(spec=Console)
-    return AnalysisOrchestrator(
+    services = OrchestratorServices(
         git_analyzer=mock_git_analyzer,
         gemini_client=mock_gemini_client,
         cache_manager=mock_cache_manager,
         artifact_writer=mock_artifact_writer,
         console=console,
+    )
+    config = OrchestratorConfig(
         no_cache=False,
         max_concurrent_tasks=10,
         debug=False,
     )
+    return AnalysisOrchestrator(services=services, config=config)
 
 
 class TestDailySummaryReuse:
@@ -227,16 +232,19 @@ class TestDailySummaryReuse:
         """Test that debug mode prints appropriate messages for existing summaries."""
         # Create orchestrator with debug mode enabled
         console = MagicMock(spec=Console)
-        debug_orchestrator = AnalysisOrchestrator(
+        services = OrchestratorServices(
             git_analyzer=mock_git_analyzer,
             gemini_client=mock_gemini_client,
             cache_manager=mock_cache_manager,
             artifact_writer=mock_artifact_writer,
             console=console,
+        )
+        config = OrchestratorConfig(
             no_cache=False,
             max_concurrent_tasks=10,
             debug=True,  # Enable debug mode
         )
+        debug_orchestrator = AnalysisOrchestrator(services=services, config=config)
 
         # Setup existing summary
         existing_summaries = {

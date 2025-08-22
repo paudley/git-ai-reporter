@@ -4,5 +4,7 @@
 """Public API for the orchestration module."""
 
 from .orchestrator import AnalysisOrchestrator
+from .orchestrator import OrchestratorConfig
+from .orchestrator import OrchestratorServices
 
-__all__ = ['AnalysisOrchestrator']
+__all__ = ['AnalysisOrchestrator', 'OrchestratorConfig', 'OrchestratorServices']

@@ -47,7 +47,7 @@ def patch_wait_exponential_and_sleep():
     """Patch wait_exponential and asyncio.sleep globally to eliminate retry delays in all tests."""
     with (
         patch(
-            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda retry_state: 0
+            "git_ai_reporter.services.gemini.wait_exponential", return_value=lambda _retry_state: 0
         ),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
@@ -154,7 +154,7 @@ class TestCommitAnalysis:
         check.is_true(result.trivial)
 
     @pytest.mark.parametrize(
-        "json_text,error_type",
+        "json_text,_",
         [
             ("```json\n{invalid json}\n```", "malformed JSON"),
             ("not valid json at all {", "invalid JSON"),
@@ -166,7 +166,7 @@ class TestCommitAnalysis:
         gemini_client: GeminiClient,  # pylint: disable=redefined-outer-name
         mock_genai_client: MagicMock,  # pylint: disable=redefined-outer-name
         json_text: str,
-        error_type: str,  # pylint: disable=unused-argument
+        _: str,  # error_type unused in test body
     ) -> None:
         """Test handling of various JSON parsing errors."""
         # Setup mock with invalid JSON - will fail 4 times

@@ -12,6 +12,7 @@ from typing import Any
 
 from git import Commit
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from rich.console import Console
 from rich.progress import BarColumn
 from rich.progress import MofNCompleteColumn
@@ -32,6 +33,26 @@ from ..services.gemini import GeminiClient
 from ..services.gemini import GeminiClientError
 from ..writing.artifact_writer import ArtifactWriter
 from ..writing.artifact_writer import NewsFileParams
+
+
+class OrchestratorServices(BaseModel):
+    """Service dependencies for the AnalysisOrchestrator."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    git_analyzer: GitAnalyzer
+    gemini_client: GeminiClient
+    cache_manager: CacheManager
+    artifact_writer: ArtifactWriter
+    console: Console
+
+
+class OrchestratorConfig(BaseModel):
+    """Configuration parameters for the AnalysisOrchestrator."""
+
+    no_cache: bool
+    max_concurrent_tasks: int
+    debug: bool = False
 
 
 class WeeklyAnalysis(BaseModel):
@@ -78,36 +99,20 @@ class ArtifactGenerationParams(BaseModel):
 class AnalysisOrchestrator:
     """Orchestrates the git analysis, AI summarization, and artifact writing."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
-        git_analyzer: GitAnalyzer,
-        gemini_client: GeminiClient,
-        cache_manager: CacheManager,
-        artifact_writer: ArtifactWriter,
-        console: Console,
-        no_cache: bool,
-        max_concurrent_tasks: int,  # pylint: disable=unused-argument
-        debug: bool = False,
+        services: OrchestratorServices,
+        config: OrchestratorConfig,
     ):
         """Initializes the AnalysisOrchestrator.
 
         Args:
-            git_analyzer: The Git analysis service.
-            gemini_client: The Gemini client service.
-            cache_manager: The cache management service.
-            artifact_writer: The artifact writing service.
-            console: The rich console for output.
-            no_cache: A flag to bypass caching.
-            max_concurrent_tasks: The maximum number of concurrent asyncio tasks.
+            services: Service dependencies for the orchestrator.
+            config: Configuration parameters for the orchestrator.
         """
-        self.git_analyzer = git_analyzer
-        self.gemini_client = gemini_client
-        self.cache_manager = cache_manager
-        self.artifact_writer = artifact_writer
-        self.console = console
-        self.no_cache = no_cache
-        self.debug = debug
+        self.services = services
+        self.config = config
 
     async def run(self, start_date: datetime, end_date: datetime) -> None:
         """Executes the full analysis and report generation workflow.
@@ -119,22 +124,24 @@ class AnalysisOrchestrator:
         Raises:
             typer.Exit: If no commits are found in the specified range.
         """
-        self.console.print(f"Analyzing repository from {start_date.date()} to {end_date.date()}...")
+        self.services.console.print(
+            f"Analyzing repository from {start_date.date()} to {end_date.date()}..."
+        )
 
         if not (
             all_commits := await asyncio.to_thread(
-                self.git_analyzer.get_commits_in_range, start_date, end_date
+                self.services.git_analyzer.get_commits_in_range, start_date, end_date
             )
         ):
-            self.console.print("No commits found in the specified timeframe.")
+            self.services.console.print("No commits found in the specified timeframe.")
             raise typer.Exit()
 
-        if self.debug:
-            self.console.print("[bold yellow]DEBUG MODE ENABLED[/bold yellow]")
+        if self.config.debug:
+            self.services.console.print("[bold yellow]DEBUG MODE ENABLED[/bold yellow]")
             analysis_result = await self._analyze_commits_by_week(all_commits, None)
 
             if not analysis_result.changelog_entries and not analysis_result.daily_summaries:
-                self.console.print("No non-trivial commits found to analyze.")
+                self.services.console.print("No non-trivial commits found to analyze.")
                 return
 
             params = ArtifactGenerationParams.model_construct(
@@ -152,12 +159,12 @@ class AnalysisOrchestrator:
                 MofNCompleteColumn(),
                 TextColumn("•"),
                 TimeRemainingColumn(),
-                console=self.console,
+                console=self.services.console,
             ) as progress:
                 analysis_result = await self._analyze_commits_by_week(all_commits, progress)
 
                 if not analysis_result.changelog_entries and not analysis_result.daily_summaries:
-                    self.console.print("No non-trivial commits found to analyze.")
+                    self.services.console.print("No non-trivial commits found to analyze.")
                     return
 
                 params = ArtifactGenerationParams.model_construct(
@@ -168,9 +175,9 @@ class AnalysisOrchestrator:
                 )
                 stats = await self._generate_and_write_artifacts(params, progress)
 
-        self.console.print("\nAnalysis complete.", style="bold green")
+        self.services.console.print("\nAnalysis complete.", style="bold green")
         if stats:
-            self.console.print(stats)
+            self.services.console.print(stats)
 
     async def _analyze_one_commit(self, commit: Commit) -> tuple[Commit, CommitAnalysis]:
         """Analyzes a single commit, running blocking I/O in a separate thread.
@@ -184,16 +191,16 @@ class AnalysisOrchestrator:
         Raises:
             GeminiClientError: If the analysis fails after all retries.
         """
-        if not self.no_cache and (
-            cached_analysis := await self.cache_manager.get_commit_analysis(commit.hexsha)
+        if not self.config.no_cache and (
+            cached_analysis := await self.services.cache_manager.get_commit_analysis(commit.hexsha)
         ):
             return commit, cached_analysis
 
         try:
-            diff = await asyncio.to_thread(self.git_analyzer.get_commit_diff, commit)
+            diff = await asyncio.to_thread(self.services.git_analyzer.get_commit_diff, commit)
 
-            analysis = await self.gemini_client.generate_commit_analysis(diff)
-            await self.cache_manager.set_commit_analysis(commit.hexsha, analysis)
+            analysis = await self.services.gemini_client.generate_commit_analysis(diff)
+            await self.services.cache_manager.set_commit_analysis(commit.hexsha, analysis)
             return commit, analysis
         except Exception as e:
             # Enhanced error message with commit details for better debugging
@@ -220,15 +227,15 @@ class AnalysisOrchestrator:
         )
 
         async def _analyze_and_update(commit: Commit) -> tuple[Commit, CommitAnalysis]:
-            if self.debug:
-                self.console.print(f"  Analyzing commit: {commit.hexsha[:7]}")
+            if self.config.debug:
+                self.services.console.print(f"  Analyzing commit: {commit.hexsha[:7]}")
             result = await self._analyze_one_commit(commit)
             if progress and commit_task is not None:
                 progress.update(commit_task, advance=1)
             return result
 
         tasks = [_analyze_and_update(commit) for commit in commits]
-        if self.debug:
+        if self.config.debug:
             results = []
             for task in tasks:
                 results.append(await task)
@@ -256,8 +263,10 @@ class AnalysisOrchestrator:
         """
         day_commits = [commit for commit, _ in day_commits_and_analyses]
         day_hexshas = [c.hexsha for c in day_commits]
-        if not self.no_cache and (
-            cached_summary := await self.cache_manager.get_daily_summary(commit_date, day_hexshas)
+        if not self.config.no_cache and (
+            cached_summary := await self.services.cache_manager.get_daily_summary(
+                commit_date, day_hexshas
+            )
         ):
             return f"### {commit_date.strftime('%Y-%m-%d')}\n\n{cached_summary}"
 
@@ -269,20 +278,26 @@ class AnalysisOrchestrator:
             return None
 
         if not (
-            daily_diff := await asyncio.to_thread(self.git_analyzer.get_weekly_diff, day_commits)
+            daily_diff := await asyncio.to_thread(
+                self.services.git_analyzer.get_weekly_diff, day_commits
+            )
         ):
             return None
 
         try:
-            if daily_summary := await self.gemini_client.synthesize_daily_summary(
+            if daily_summary := await self.services.gemini_client.synthesize_daily_summary(
                 full_log, daily_diff
             ):
-                await self.cache_manager.set_daily_summary(commit_date, day_hexshas, daily_summary)
+                await self.services.cache_manager.set_daily_summary(
+                    commit_date, day_hexshas, daily_summary
+                )
                 return f"### {commit_date.strftime('%Y-%m-%d')}\n\n{daily_summary}"
         except GeminiClientError as e:
-            if self.debug:
+            if self.config.debug:
                 raise e
-            self.console.print(f"Skipping daily summary for {commit_date}: {e}", style="yellow")
+            self.services.console.print(
+                f"Skipping daily summary for {commit_date}: {e}", style="yellow"
+            )
         return None
 
     def _group_commits_by_date(
@@ -313,16 +328,16 @@ class AnalysisOrchestrator:
         """
         # Check if we already have a summary for this date
         if (date_str := params.commit_date.strftime("%Y-%m-%d")) in params.existing_summaries:
-            if self.debug:
-                self.console.print(f"  Using existing summary for: {params.commit_date}")
+            if self.config.debug:
+                self.services.console.print(f"  Using existing summary for: {params.commit_date}")
             if params.progress and params.daily_task is not None:
                 params.progress.update(params.daily_task, advance=1)
             # Return the existing summary
             return params.existing_summaries[date_str]
 
         # Generate new summary only if it doesn't exist
-        if self.debug:
-            self.console.print(f"  Generating daily summary for: {params.commit_date}")
+        if self.config.debug:
+            self.services.console.print(f"  Generating daily summary for: {params.commit_date}")
         summary = await self._summarize_one_day(params.commit_date, params.day_data)
         if params.progress and params.daily_task is not None:
             params.progress.update(params.daily_task, advance=1)
@@ -359,7 +374,7 @@ class AnalysisOrchestrator:
             for commit_date, day_commits in sorted_days
         ]
 
-        if self.debug:
+        if self.config.debug:
             daily_summaries = []
             for task in tasks:
                 daily_summaries.append(await task)
@@ -387,7 +402,7 @@ class AnalysisOrchestrator:
             day of development activity.
         """
         # Read existing daily summaries to avoid regenerating them
-        existing_summaries = await self.artifact_writer.read_existing_daily_summaries()
+        existing_summaries = await self.services.artifact_writer.read_existing_daily_summaries()
 
         if not (daily_commits := self._group_commits_by_date(commit_and_analysis)):
             return []
@@ -434,23 +449,25 @@ class AnalysisOrchestrator:
         week_num_str = f"{week_num[0]}-{week_num[1]}"
         week_hexshas = [c.hexsha for c in commits_in_week]
 
-        if not self.no_cache and (
-            cached_summary := await self.cache_manager.get_weekly_summary(
+        if not self.config.no_cache and (
+            cached_summary := await self.services.cache_manager.get_weekly_summary(
                 week_num_str, week_hexshas
             )
         ):
-            self.console.print("Loaded weekly summary for NEWS.md from cache.")
+            self.services.console.print("Loaded weekly summary for NEWS.md from cache.")
             return cached_summary
 
         # Generate weekly summary for all commits (complete coverage required)
         if not (
             weekly_diff := await asyncio.to_thread(
-                self.git_analyzer.get_weekly_diff, commits_in_week
+                self.services.git_analyzer.get_weekly_diff, commits_in_week
             )
         ):
             return None
 
-        self.console.print(f"Generating weekly summary for {len(commits_in_week)} commits...")
+        self.services.console.print(
+            f"Generating weekly summary for {len(commits_in_week)} commits..."
+        )
         messages = self._extract_commit_messages(non_trivial_commits)
         weekly_log = "\n".join(messages)
 
@@ -461,7 +478,7 @@ class AnalysisOrchestrator:
 
         # Create token counter using same model as Gemini service
         token_counter = _GeminiTokenCounter(
-            self.gemini_client._client, self.gemini_client._config.model_tier2
+            self.services.gemini_client._client, self.services.gemini_client._config.model_tier2
         )
 
         # This will preserve ALL data through overlapping chunks if needed
@@ -472,11 +489,17 @@ class AnalysisOrchestrator:
         )
 
         # Log successful data preservation
-        self.console.print("[green]✓ Diff fitted with 100% data preservation[/green]")
+        self.services.console.print("[green]✓ Diff fitted with 100% data preservation[/green]")
 
-        if summary := await self.gemini_client.synthesize_daily_summary(weekly_log, weekly_diff):
-            await self.cache_manager.set_weekly_summary(week_num_str, week_hexshas, summary)
-            self.console.print("Generated weekly summary for NEWS.md with 100% data preservation.")
+        if summary := await self.services.gemini_client.synthesize_daily_summary(
+            weekly_log, weekly_diff
+        ):
+            await self.services.cache_manager.set_weekly_summary(
+                week_num_str, week_hexshas, summary
+            )
+            self.services.console.print(
+                "Generated weekly summary for NEWS.md with 100% data preservation."
+            )
         return summary
 
     async def _generate_standard_summary(
@@ -502,11 +525,15 @@ class AnalysisOrchestrator:
         """
         # Generate weekly diff for all commits (complete coverage required)
         if not (
-            weekly_diff := await asyncio.to_thread(self.git_analyzer.get_weekly_diff, all_commits)
+            weekly_diff := await asyncio.to_thread(
+                self.services.git_analyzer.get_weekly_diff, all_commits
+            )
         ):
             return None
 
-        self.console.print(f"Generating standard summary for {len(all_commits)} commits...")
+        self.services.console.print(
+            f"Generating standard summary for {len(all_commits)} commits..."
+        )
         messages = self._extract_commit_messages(non_trivial_commits)
         weekly_log = "\n".join(messages)
 
@@ -516,7 +543,7 @@ class AnalysisOrchestrator:
 
         # Create token counter using same model as Gemini service
         token_counter = _GeminiTokenCounter(
-            self.gemini_client._client, self.gemini_client._config.model_tier2
+            self.services.gemini_client._client, self.services.gemini_client._config.model_tier2
         )
 
         # This will preserve ALL data through overlapping chunks if needed
@@ -527,11 +554,15 @@ class AnalysisOrchestrator:
         )
 
         # Log successful data preservation
-        self.console.print("[green]✓ Diff fitted with 100% data preservation[/green]")
+        self.services.console.print("[green]✓ Diff fitted with 100% data preservation[/green]")
 
-        if summary := await self.gemini_client.synthesize_daily_summary(weekly_log, weekly_diff):
-            await self.cache_manager.set_weekly_summary(week_num_str, week_hexshas, summary)
-            self.console.print("Generated standard summary with 100% data preservation.")
+        if summary := await self.services.gemini_client.synthesize_daily_summary(
+            weekly_log, weekly_diff
+        ):
+            await self.services.cache_manager.set_weekly_summary(
+                week_num_str, week_hexshas, summary
+            )
+            self.services.console.print("Generated standard summary with 100% data preservation.")
         return summary
 
     async def _analyze_one_week(
@@ -605,8 +636,8 @@ class AnalysisOrchestrator:
         )
 
         for week_num, commits_in_week in sorted_weeks:
-            if self.debug:
-                self.console.print(f"Processing week: {week_num[0]}-W{week_num[1]}")
+            if self.config.debug:
+                self.services.console.print(f"Processing week: {week_num[0]}-W{week_num[1]}")
             weekly_result = await self._analyze_one_week(week_num, commits_in_week, progress)
             all_daily_summaries.extend(weekly_result.daily_summaries)
             if weekly_result.weekly_summary:
@@ -632,19 +663,21 @@ class AnalysisOrchestrator:
     ) -> str | None:
         """Gets the final narrative from cache or generates it if not present."""
         del progress  # Unused but kept for API consistency
-        if not self.no_cache and (
-            cached_narrative := await self.cache_manager.get_final_narrative(result)
+        if not self.config.no_cache and (
+            cached_narrative := await self.services.cache_manager.get_final_narrative(result)
         ):
-            self.console.print("Loaded final narrative from cache.")
+            self.services.console.print("Loaded final narrative from cache.")
             return cached_narrative
 
         if not (
-            period_diff := await asyncio.to_thread(self.git_analyzer.get_weekly_diff, all_commits)
+            period_diff := await asyncio.to_thread(
+                self.services.git_analyzer.get_weekly_diff, all_commits
+            )
         ):
             return None
 
         history = (
-            await self.artifact_writer._read_historical_summaries()
+            await self.services.artifact_writer._read_historical_summaries()
         )  # pylint: disable=protected-access
 
         daily_summaries_text = "\n\n".join(result.daily_summaries)
@@ -655,14 +688,14 @@ class AnalysisOrchestrator:
                 summaries_list.append(f"- {change.summary} ({change.category})")
         detailed_commits_text = "\n".join(summaries_list)
 
-        narrative = await self.gemini_client.generate_news_narrative(
+        narrative = await self.services.gemini_client.generate_news_narrative(
             commit_summaries=detailed_commits_text,
             daily_summaries=daily_summaries_text,
             weekly_diff=period_diff,
             history=history,
         )
         if narrative:
-            await self.cache_manager.set_final_narrative(result, narrative)
+            await self.services.cache_manager.set_final_narrative(result, narrative)
             return narrative
         return None
 
@@ -671,10 +704,10 @@ class AnalysisOrchestrator:
     ) -> str | None:
         """Gets the final changelog from cache or generates it if not present."""
         del progress  # Unused but kept for API consistency
-        if not self.no_cache and (
-            cached_changelog := await self.cache_manager.get_changelog_entries(entries)
+        if not self.config.no_cache and (
+            cached_changelog := await self.services.cache_manager.get_changelog_entries(entries)
         ):
-            self.console.print("Loaded final changelog from cache.")
+            self.services.console.print("Loaded final changelog from cache.")
             return cached_changelog
 
         categorized_summaries = []
@@ -687,8 +720,10 @@ class AnalysisOrchestrator:
         if not categorized_summaries:
             return None
 
-        if changelog := await self.gemini_client.generate_changelog_entries(categorized_summaries):
-            await self.cache_manager.set_changelog_entries(entries, changelog)
+        if changelog := await self.services.gemini_client.generate_changelog_entries(
+            categorized_summaries
+        ):
+            await self.services.cache_manager.set_changelog_entries(entries, changelog)
             return changelog
         return None
 
@@ -707,13 +742,13 @@ class AnalysisOrchestrator:
         narrative_task, changelog_task = None, None
 
         if result.changelog_entries or result.daily_summaries:
-            if self.debug:
-                self.console.print("Generating narrative...")
+            if self.config.debug:
+                self.services.console.print("Generating narrative...")
             narrative_task = self._get_or_generate_narrative(result, all_commits, progress)
             generation_tasks.append(narrative_task)
         if result.changelog_entries:
-            if self.debug:
-                self.console.print("Generating changelog...")
+            if self.config.debug:
+                self.services.console.print("Generating changelog...")
             changelog_task = self._get_or_generate_changelog(result.changelog_entries, progress)
             generation_tasks.append(changelog_task)
 
@@ -723,27 +758,35 @@ class AnalysisOrchestrator:
         """Prepare file writing tasks."""
         writing_tasks = []
         if params.final_narrative:
-            if self.debug:
-                self.console.print(f"  Writing file: {self.artifact_writer.news_path.name}")
+            if self.config.debug:
+                self.services.console.print(
+                    f"  Writing file: {self.services.artifact_writer.news_path.name}"
+                )
             news_params = NewsFileParams(
                 narrative=params.final_narrative,
                 start_date=params.start_date,
                 end_date=params.end_date,
-                gemini_client=self.gemini_client,
+                gemini_client=self.services.gemini_client,
             )
-            writing_tasks.append(self.artifact_writer.update_news_file(news_params))
+            writing_tasks.append(self.services.artifact_writer.update_news_file(news_params))
         if params.result.daily_summaries:
-            if self.debug:
-                self.console.print(
-                    f"  Writing file: {self.artifact_writer.daily_updates_path.name}"
+            if self.config.debug:
+                self.services.console.print(
+                    f"  Writing file: {self.services.artifact_writer.daily_updates_path.name}"
                 )
             writing_tasks.append(
-                self.artifact_writer.update_daily_updates_file(params.result.daily_summaries)
+                self.services.artifact_writer.update_daily_updates_file(
+                    params.result.daily_summaries
+                )
             )
         if params.final_changelog:
-            if self.debug:
-                self.console.print(f"  Writing file: {self.artifact_writer.changelog_path.name}")
-            writing_tasks.append(self.artifact_writer.update_changelog_file(params.final_changelog))
+            if self.config.debug:
+                self.services.console.print(
+                    f"  Writing file: {self.services.artifact_writer.changelog_path.name}"
+                )
+            writing_tasks.append(
+                self.services.artifact_writer.update_changelog_file(params.final_changelog)
+            )
         return writing_tasks
 
     def _build_stats_message(
@@ -756,13 +799,15 @@ class AnalysisOrchestrator:
         stats = []
         if final_narrative:
             stats.append(
-                f"Wrote narrative to [bold magenta]{self.artifact_writer.news_path.name}[/]."
+                f"Wrote narrative to [bold magenta]{self.services.artifact_writer.news_path.name}[/]."
             )
         if final_changelog:
-            stats.append(f"Updated [bold magenta]{self.artifact_writer.changelog_path.name}[/].")
+            stats.append(
+                f"Updated [bold magenta]{self.services.artifact_writer.changelog_path.name}[/]."
+            )
         if result.daily_summaries:
             stats.append(
-                f"Updated [bold magenta]{self.artifact_writer.daily_updates_path.name}[/]."
+                f"Updated [bold magenta]{self.services.artifact_writer.daily_updates_path.name}[/]."
             )
         return " ".join(stats) if stats else None
 
@@ -773,7 +818,7 @@ class AnalysisOrchestrator:
         generation_task: TaskID | None,
     ) -> list[str | None]:
         """Execute generation tasks and update progress."""
-        if self.debug:
+        if self.config.debug:
             generated_content = []
             for task in generation_tasks:
                 generated_content.append(await task)
@@ -792,7 +837,7 @@ class AnalysisOrchestrator:
         writing_task_id: TaskID | None,
     ) -> None:
         """Execute writing tasks and update progress."""
-        if self.debug:
+        if self.config.debug:
             for task in writing_tasks:
                 await task
         else:

@@ -109,7 +109,7 @@ class OptimizationTarget(Enum):
     MEMORY = "memory"  # Minimize memory usage
     ACCURACY = "accuracy"  # Maximize fitting accuracy
     COMPRESSION_RATIO = "compression"  # Optimize compression efficiency
-    TOKEN_EFFICIENCY = "tokens"  # Maximize token utilization
+    TOKEN_EFFICIENCY = "tokens"  # Maximize token utilization  # nosec B105
 
 
 @dataclass

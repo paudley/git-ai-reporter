@@ -144,7 +144,7 @@ class FallbackChainFitter(ContentFitter):
                     fitter_class=OverlappingChunksFitter,
                     name="overlapping_chunks",
                     priority=PRIMARY_STRATEGY_PRIORITY,
-                    condition=lambda content, tokens, config: len(content.split("\n"))
+                    condition=lambda content, _tokens, _config: len(content.split("\n"))
                     >= MIN_LINES_FOR_OVERLAPPING_CHUNKS,
                 )
             ),
@@ -154,7 +154,7 @@ class FallbackChainFitter(ContentFitter):
                     fitter_class=LogCompressionFitter,
                     name="temporal_log",
                     priority=SECONDARY_STRATEGY_PRIORITY,
-                    condition=lambda content, tokens, config: True,  # Always applicable
+                    condition=lambda _content, _tokens, _config: True,  # Always applicable
                 )
             ),
             # Tertiary: StructuralDiffFitter for structured content
@@ -163,7 +163,7 @@ class FallbackChainFitter(ContentFitter):
                     fitter_class=DiffTruncationFitter,  # Actually StructuralDiffFitter behavior
                     name="structural_diff",
                     priority=TERTIARY_STRATEGY_PRIORITY,
-                    condition=lambda content, tokens, config: (
+                    condition=lambda content, _tokens, _config: (
                         self._detect_git_diff_content(content)
                     ),
                 )

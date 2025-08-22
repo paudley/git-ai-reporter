@@ -304,7 +304,8 @@ class PythonPatternDetector(PatternDetector):
         """Create ContentPattern objects for import groups."""
         patterns = []
         for group in import_groups:
-            assert isinstance(group["start"], int) and isinstance(group["end"], int)
+            if not (isinstance(group["start"], int) and isinstance(group["end"], int)):
+                raise ValueError(f"Invalid group format: {group}")
             patterns.append(
                 ContentPattern(
                     pattern_type=f"{group['type']}_imports",
@@ -872,4 +873,4 @@ class AdvancedContentAnalyzer:
 
         # Create hash from structural signature
         signature = "|".join(structural_elements[:100])  # Limit to first 100 lines
-        return hashlib.md5(signature.encode()).hexdigest()[:16]
+        return hashlib.sha256(signature.encode(), usedforsecurity=False).hexdigest()[:16]

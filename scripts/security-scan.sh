@@ -165,8 +165,74 @@ scan_file() {
     return $found
 }
 
+# Function to run bandit security analysis
+run_bandit_scan() {
+    echo "🛡️  Running bandit security analysis..."
+    
+    # Create a temporary bandit report file
+    local bandit_report
+    bandit_report=$(mktemp)
+    
+    # Run bandit on src/ directory using pyproject.toml configuration
+    if [ ! -d "src/" ]; then
+        echo "  No src/ directory found, skipping bandit scan"
+        return 0
+    fi
+    
+    # Run bandit with JSON output for parsing
+    if uv run bandit -r src/ -f json -o "$bandit_report" --quiet 2>/dev/null; then
+        echo "  ✅ Bandit scan completed - no security issues found"
+        rm -f "$bandit_report"
+        return 0
+    else
+        local exit_code=$?
+        if [ $exit_code -eq 1 ]; then
+            # Bandit found issues
+            echo -e "  ${RED}⚠️  Bandit found security vulnerabilities:${NC}"
+            
+            # Parse JSON output for human-readable summary
+            if command -v jq >/dev/null 2>&1; then
+                # Use jq if available for better parsing
+                local high_severity
+                local medium_severity
+                local low_severity
+                high_severity=$(jq -r '.metrics._totals."SEVERITY.HIGH" // 0' "$bandit_report")
+                medium_severity=$(jq -r '.metrics._totals."SEVERITY.MEDIUM" // 0' "$bandit_report")
+                low_severity=$(jq -r '.metrics._totals."SEVERITY.LOW" // 0' "$bandit_report")
+                
+                echo -e "    ${RED}High severity: $high_severity${NC}"
+                echo -e "    ${YELLOW}Medium severity: $medium_severity${NC}"
+                echo -e "    Low severity: $low_severity"
+                
+                # Show first few issues for context
+                echo ""
+                echo "  Sample issues found:"
+                jq -r '.results[:3][] | "    \(.filename):\(.line_number) - \(.issue_text)"' "$bandit_report" 2>/dev/null | head -5
+            else
+                # Fallback to basic parsing without jq
+                echo "  See detailed report for security issues"
+                grep -o '"SEVERITY\.[^"]*":[0-9]*' "$bandit_report" 2>/dev/null | head -5 || echo "  Run bandit manually for details"
+            fi
+            
+            echo ""
+            echo -e "  ${YELLOW}To view full bandit report:${NC}"
+            echo "    uv run bandit -r src/ --format screen"
+            echo ""
+            
+            rm -f "$bandit_report"
+            ((FINDINGS += 10))  # Add to findings counter
+            return 1
+        else
+            # Other error (e.g., syntax error, missing files)
+            echo -e "  ${YELLOW}⚠️  Bandit scan encountered an error (exit code: $exit_code)${NC}"
+            rm -f "$bandit_report"
+            return 0  # Don't fail the entire scan for bandit errors
+        fi
+    fi
+}
+
 # Main execution
-echo "🔒 Running security scan for secrets and credentials..."
+echo "🔒 Running comprehensive security scan..."
 
 # Get list of files to scan (passed as arguments or from git)
 if [ $# -gt 0 ]; then
@@ -180,6 +246,12 @@ if [ -z "$FILES" ]; then
     echo "No files to scan"
     exit 0
 fi
+
+# Run bandit analysis first (for Python security vulnerabilities)
+run_bandit_scan
+
+echo ""
+echo "🔍 Scanning files for secrets and credentials..."
 
 # Scan each file
 for file in $FILES; do

@@ -23,6 +23,7 @@ from git import GitCommandError
 from git import NoSuchPathError
 from git import Repo
 from google import genai
+from pydantic import BaseModel
 from rich.console import Console
 import typer
 
@@ -31,12 +32,51 @@ from git_ai_reporter.analysis.git_analyzer import GitAnalyzerConfig
 from git_ai_reporter.cache import CacheManager
 from git_ai_reporter.config import Settings
 from git_ai_reporter.orchestration import AnalysisOrchestrator
+from git_ai_reporter.orchestration import OrchestratorConfig
+from git_ai_reporter.orchestration import OrchestratorServices
 from git_ai_reporter.services.gemini import GeminiClient
 from git_ai_reporter.services.gemini import GeminiClientConfig
 from git_ai_reporter.services.gemini import GeminiClientError
 from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 
 CONSOLE: Final = Console()
+
+
+class RepositoryParams(BaseModel):
+    """Repository-related parameters."""
+
+    repo_path: str
+
+
+class TimeRangeParams(BaseModel):
+    """Time range parameters for analysis."""
+
+    weeks: int
+    start_date_str: str | None = None
+    end_date_str: str | None = None
+
+
+class AppConfigParams(BaseModel):
+    """Application configuration parameters."""
+
+    config_file: str | None = None
+    cache_dir: str
+    no_cache: bool = False
+    debug: bool = False
+
+
+class MainFunctionParams(BaseModel):
+    """All parameters for the main function."""
+
+    repo_path: str
+    weeks: int
+    start_date_str: str | None = None
+    end_date_str: str | None = None
+    config_file: str | None = None
+    cache_dir: str
+    no_cache: bool = False
+    debug: bool = False
+
 
 # Constants for history generation detection
 MIN_NEWS_CONTENT_LENGTH: Final = 100
@@ -70,61 +110,87 @@ def _setup(
         if not settings.GEMINI_API_KEY:
             raise ValueError("GEMINI_API_KEY is not set in environment or .env file.")
 
-        gemini_config = GeminiClientConfig(
-            model_tier1=settings.MODEL_TIER_1,
-            model_tier2=settings.MODEL_TIER_2,
-            model_tier3=settings.MODEL_TIER_3,
-            input_token_limit_tier1=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER1,
-            input_token_limit_tier2=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER2,
-            input_token_limit_tier3=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER3,
-            max_tokens_tier1=settings.MAX_TOKENS_TIER_1,
-            max_tokens_tier2=settings.MAX_TOKENS_TIER_2,
-            max_tokens_tier3=settings.MAX_TOKENS_TIER_3,
-            temperature=settings.TEMPERATURE,
-            api_timeout=settings.GEMINI_API_TIMEOUT,
-            debug=debug,
-        )
-        gemini_client = GeminiClient(genai.Client(api_key=settings.GEMINI_API_KEY), gemini_config)
-        try:
-            repo = Repo(repo_path, search_parent_directories=True)
-        except (GitCommandError, NoSuchPathError) as e:
-            raise FileNotFoundError(f"Not a valid git repository: {repo_path}") from e
+        # Create Gemini client
+        gemini_client = _create_gemini_client(settings, debug)
 
-        repo_path_obj = Path(repo.working_dir)
-        cache_path = repo_path_obj / cache_dir
-        cache_manager = CacheManager(cache_path)
+        # Initialize repository
+        repo = _initialize_repo(repo_path)
 
-        git_analyzer = GitAnalyzer(
-            repo,
-            GitAnalyzerConfig(
-                trivial_commit_types=settings.TRIVIAL_COMMIT_TYPES,
-                trivial_file_patterns=settings.TRIVIAL_FILE_PATTERNS,
-                git_command_timeout=settings.GIT_COMMAND_TIMEOUT,
-                debug=debug,
-            ),
-        )
-        artifact_writer = ArtifactWriter(
-            news_file=str(repo_path_obj / settings.NEWS_FILE),
-            changelog_file=str(repo_path_obj / settings.CHANGELOG_FILE),
-            daily_updates_file=str(repo_path_obj / settings.DAILY_UPDATES_FILE),
-            console=CONSOLE,
-        )
-        return (
-            AnalysisOrchestrator(
-                git_analyzer=git_analyzer,
-                gemini_client=gemini_client,
-                cache_manager=cache_manager,
-                artifact_writer=artifact_writer,
-                console=CONSOLE,
-                no_cache=no_cache,
-                max_concurrent_tasks=settings.MAX_CONCURRENT_GIT_COMMANDS,
-                debug=debug,
-            ),
-            repo,
-        )
+        # Create services and config
+        services = _create_services(repo, settings, cache_dir, gemini_client, debug)
+        config = _create_config(no_cache, settings, debug)
+
+        return AnalysisOrchestrator(services=services, config=config), repo
     except (ValueError, FileNotFoundError) as e:
         CONSOLE.print(str(e), style="bold red")
         raise typer.Exit(code=1) from e
+
+
+def _create_gemini_client(settings: Settings, debug: bool) -> GeminiClient:
+    """Create and configure a Gemini client."""
+    gemini_config = GeminiClientConfig(
+        model_tier1=settings.MODEL_TIER_1,
+        model_tier2=settings.MODEL_TIER_2,
+        model_tier3=settings.MODEL_TIER_3,
+        input_token_limit_tier1=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER1,
+        input_token_limit_tier2=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER2,
+        input_token_limit_tier3=settings.GEMINI_INPUT_TOKEN_LIMIT_TIER3,
+        max_tokens_tier1=settings.MAX_TOKENS_TIER_1,
+        max_tokens_tier2=settings.MAX_TOKENS_TIER_2,
+        max_tokens_tier3=settings.MAX_TOKENS_TIER_3,
+        temperature=settings.TEMPERATURE,
+        api_timeout=settings.GEMINI_API_TIMEOUT,
+        debug=debug,
+    )
+    return GeminiClient(genai.Client(api_key=settings.GEMINI_API_KEY), gemini_config)
+
+
+def _initialize_repo(repo_path: str) -> Repo:
+    """Initialize and validate repository."""
+    try:
+        return Repo(repo_path, search_parent_directories=True)
+    except (GitCommandError, NoSuchPathError) as e:
+        raise FileNotFoundError(f"Not a valid git repository: {repo_path}") from e
+
+
+def _create_services(
+    repo: Repo, settings: Settings, cache_dir: str, gemini_client: GeminiClient, debug: bool
+) -> OrchestratorServices:
+    """Create orchestrator services."""
+    repo_path_obj = Path(repo.working_dir)
+    cache_manager = CacheManager(repo_path_obj / cache_dir)
+
+    git_analyzer = GitAnalyzer(
+        repo,
+        GitAnalyzerConfig(
+            trivial_commit_types=settings.TRIVIAL_COMMIT_TYPES,
+            trivial_file_patterns=settings.TRIVIAL_FILE_PATTERNS,
+            git_command_timeout=settings.GIT_COMMAND_TIMEOUT,
+            debug=debug,
+        ),
+    )
+    artifact_writer = ArtifactWriter(
+        news_file=str(repo_path_obj / settings.NEWS_FILE),
+        changelog_file=str(repo_path_obj / settings.CHANGELOG_FILE),
+        daily_updates_file=str(repo_path_obj / settings.DAILY_UPDATES_FILE),
+        console=CONSOLE,
+    )
+    return OrchestratorServices(
+        git_analyzer=git_analyzer,
+        gemini_client=gemini_client,
+        cache_manager=cache_manager,
+        artifact_writer=artifact_writer,
+        console=CONSOLE,
+    )
+
+
+def _create_config(no_cache: bool, settings: Settings, debug: bool) -> OrchestratorConfig:
+    """Create orchestrator configuration."""
+    return OrchestratorConfig(
+        no_cache=no_cache,
+        max_concurrent_tasks=settings.MAX_CONCURRENT_GIT_COMMANDS,
+        debug=debug,
+    )
 
 
 def _load_settings(config_file: str | None) -> Settings:
@@ -215,9 +281,51 @@ def _get_full_repo_date_range(git_analyzer: GitAnalyzer) -> tuple[datetime, date
     return start_date, end_date
 
 
+def _run_analysis(
+    repo_params: RepositoryParams,
+    time_params: TimeRangeParams,
+    app_config: AppConfigParams,
+) -> None:
+    """Core analysis logic extracted from main CLI function.
+
+    Args:
+        repo_params: Repository-related parameters.
+        time_params: Time range parameters for analysis.
+        app_config: Application configuration parameters.
+    """
+    settings = _load_settings(app_config.config_file)
+    orchestrator, repo = _setup(
+        repo_params.repo_path, settings, app_config.cache_dir, app_config.no_cache, app_config.debug
+    )
+    try:
+        # Check if we should generate full history (when NEWS.md is missing/empty)
+        if not time_params.start_date_str and _should_generate_full_history(
+            repo_params.repo_path, settings
+        ):
+            CONSOLE.print(
+                "NEWS.md not found or empty - generating full repository history", style="yellow"
+            )
+            start_date, end_date = _get_full_repo_date_range(orchestrator.services.git_analyzer)
+            CONSOLE.print(
+                f"Analyzing full repository history from {start_date.date()} to {end_date.date()}"
+            )
+        else:
+            start_date, end_date = _determine_date_range(
+                time_params.weeks, time_params.start_date_str, time_params.end_date_str
+            )
+
+        asyncio.run(orchestrator.run(start_date, end_date))
+    except GeminiClientError as e:
+        CONSOLE.print(f"\n[bold red]A fatal error occurred during analysis:[/bold red]\n{e}")
+        raise typer.Exit(code=1) from e
+    finally:
+        # Ensure the repo object is closed to release all resources and child processes.
+        repo.close()
+
+
 # --- Main Application Logic ---
 @APP.command()
-def main(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     repo_path: str = typer.Option(".", "--repo-path", help="Path to the Git repository."),
     weeks: int = typer.Option(4, "--weeks", help="Number of past weeks to analyze."),
     start_date_str: str | None = typer.Option(
@@ -259,28 +367,20 @@ def main(  # pylint: disable=too-many-arguments, too-many-positional-arguments
         no_cache: If True, ignore existing cache and re-analyze.
         debug: If True, enable verbose logging and disable progress bars.
     """
-    settings = _load_settings(config_file)
-    orchestrator, repo = _setup(repo_path, settings, cache_dir, no_cache, debug)
-    try:
-        # Check if we should generate full history (when NEWS.md is missing/empty)
-        if not start_date_str and _should_generate_full_history(repo_path, settings):
-            CONSOLE.print(
-                "NEWS.md not found or empty - generating full repository history", style="yellow"
-            )
-            start_date, end_date = _get_full_repo_date_range(orchestrator.git_analyzer)
-            CONSOLE.print(
-                f"Analyzing full repository history from {start_date.date()} to {end_date.date()}"
-            )
-        else:
-            start_date, end_date = _determine_date_range(weeks, start_date_str, end_date_str)
+    repo_params = RepositoryParams(repo_path=repo_path)
+    time_params = TimeRangeParams(
+        weeks=weeks,
+        start_date_str=start_date_str,
+        end_date_str=end_date_str,
+    )
+    app_config = AppConfigParams(
+        config_file=config_file,
+        cache_dir=cache_dir,
+        no_cache=no_cache,
+        debug=debug,
+    )
 
-        asyncio.run(orchestrator.run(start_date, end_date))
-    except GeminiClientError as e:
-        CONSOLE.print(f"\n[bold red]A fatal error occurred during analysis:[/bold red]\n{e}")
-        raise typer.Exit(code=1) from e
-    finally:
-        # Ensure the repo object is closed to release all resources and child processes.
-        repo.close()
+    _run_analysis(repo_params, time_params, app_config)
 
 
 if __name__ == "__main__":

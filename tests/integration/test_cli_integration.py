@@ -20,9 +20,12 @@ import pytest
 import pytest_check as check
 from typer.testing import CliRunner
 
+from git_ai_reporter.analysis.git_analyzer import GitAnalyzer
+from git_ai_reporter.cache import CacheManager
 from git_ai_reporter.cli import APP
 from git_ai_reporter.models import AnalysisResult
 from git_ai_reporter.models import CommitAnalysis
+from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 
 
 @pytest.fixture
@@ -100,25 +103,29 @@ class TestCLIIntegration:
         mock_orchestrator: MagicMock,
         cli_runner: CliRunner,  # pylint: disable=redefined-outer-name
         temp_git_repo: git.Repo,  # pylint: disable=redefined-outer-name
-        # pylint: disable=redefined-outer-name,unused-argument
-        mock_analysis_result: AnalysisResult,
+        # pylint: disable=redefined-outer-name
     ) -> None:
         """Test a basic run of the CLI."""
         # Setup mocks
         mock_orchestrator_instance = MagicMock()
         mock_orchestrator_instance.run = AsyncMock(return_value=None)
-        # Mock the git_analyzer to return proper datetime values
+        # Mock the git_analyzer with proper class for Pydantic validation
         mock_git_analyzer = MagicMock()
         mock_git_analyzer.get_first_commit_date.return_value = datetime(
             2025, 1, 1, tzinfo=timezone.utc
         )
-        mock_orchestrator_instance.git_analyzer = mock_git_analyzer
+        # Set up class for Pydantic validation
+        mock_git_analyzer.__class__ = GitAnalyzer
+        mock_orchestrator_instance.services = MagicMock()
+        mock_orchestrator_instance.services.git_analyzer = mock_git_analyzer
         mock_orchestrator.return_value = mock_orchestrator_instance
 
         mock_artifact_writer_instance = MagicMock()
         mock_artifact_writer_instance.update_news_file = AsyncMock()
         mock_artifact_writer_instance.update_changelog_file = AsyncMock()
         mock_artifact_writer_instance.update_daily_updates_file = AsyncMock()
+        # Set up class for Pydantic validation
+        mock_artifact_writer_instance.__class__ = ArtifactWriter
         mock_artifact_writer.return_value = mock_artifact_writer_instance
 
         # Set environment variable for API key
@@ -194,12 +201,15 @@ class TestCLIIntegration:
             with patch("git_ai_reporter.cli.AnalysisOrchestrator") as mock_orchestrator:
                 mock_instance = MagicMock()
                 mock_instance.run = AsyncMock(return_value=None)
-                # Mock the git_analyzer to return proper datetime values
+                # Mock the git_analyzer with proper class for Pydantic validation
                 mock_git_analyzer = MagicMock()
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 result = cli_runner.invoke(
@@ -223,18 +233,23 @@ class TestCLIIntegration:
     ) -> None:
         """Test the --no-cache flag."""
         mock_cache_instance = MagicMock()
+        # Add class assignment to pass Pydantic validation
+        mock_cache_instance.__class__ = CacheManager
         mock_cache_manager.return_value = mock_cache_instance
 
         with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
             with patch("git_ai_reporter.cli.AnalysisOrchestrator") as mock_orchestrator:
                 mock_instance = MagicMock()
                 mock_instance.run = AsyncMock(return_value=None)
-                # Mock the git_analyzer to return proper datetime values
+                # Mock the git_analyzer with proper class for Pydantic validation
                 mock_git_analyzer = MagicMock()
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 # Run without cache
@@ -270,18 +285,23 @@ class TestCLIIntegration:
                 with patch("git_ai_reporter.cli.ArtifactWriter") as mock_writer:
                     mock_instance = MagicMock()
                     mock_instance.run = AsyncMock(return_value=None)
-                    # Mock the git_analyzer to return proper datetime values
+                    # Mock the git_analyzer with proper class for Pydantic validation
                     mock_git_analyzer = MagicMock()
                     mock_git_analyzer.get_first_commit_date.return_value = datetime(
                         2025, 1, 1, tzinfo=timezone.utc
                     )
-                    mock_instance.git_analyzer = mock_git_analyzer
+                    # Set up class for Pydantic validation
+                    mock_git_analyzer.__class__ = GitAnalyzer
+                    mock_instance.services = MagicMock()
+                    mock_instance.services.git_analyzer = mock_git_analyzer
                     mock_orchestrator.return_value = mock_instance
 
                     mock_writer_instance = MagicMock()
                     mock_writer_instance.update_news_file = AsyncMock()
                     mock_writer_instance.update_changelog_file = AsyncMock()
                     mock_writer_instance.update_daily_updates_file = AsyncMock()
+                    # Set up class for Pydantic validation
+                    mock_writer_instance.__class__ = ArtifactWriter
                     mock_writer.return_value = mock_writer_instance
 
                     result = cli_runner.invoke(
@@ -309,12 +329,15 @@ class TestCLIIntegration:
             with patch("git_ai_reporter.cli.AnalysisOrchestrator") as mock_orchestrator:
                 mock_instance = MagicMock()
                 mock_instance.run = AsyncMock(return_value=None)
-                # Mock the git_analyzer to return proper datetime values
+                # Mock the git_analyzer with proper class for Pydantic validation
                 mock_git_analyzer = MagicMock()
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 result = cli_runner.invoke(
@@ -368,12 +391,15 @@ class TestCLIIntegration:
             with patch("git_ai_reporter.cli.AnalysisOrchestrator") as mock_orchestrator:
                 mock_instance = MagicMock()
                 mock_instance.run = AsyncMock(return_value=None)
-                # Mock the git_analyzer to return proper datetime values
+                # Mock the git_analyzer with proper class for Pydantic validation
                 mock_git_analyzer = MagicMock()
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 result = cli_runner.invoke(
@@ -405,7 +431,10 @@ class TestCLIIntegration:
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 result = cli_runner.invoke(
@@ -436,7 +465,10 @@ class TestCLIIntegration:
                 mock_git_analyzer.get_first_commit_date.return_value = datetime(
                     2025, 1, 1, tzinfo=timezone.utc
                 )
-                mock_instance.git_analyzer = mock_git_analyzer
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
                 mock_orchestrator.return_value = mock_instance
 
                 result = cli_runner.invoke(

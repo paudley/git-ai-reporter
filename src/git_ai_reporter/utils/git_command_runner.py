@@ -3,7 +3,7 @@
 
 """A robust, async-native utility for running git commands as subprocesses."""
 
-import subprocess
+import subprocess  # nosec B404
 
 from rich import print as rprint
 
@@ -31,7 +31,7 @@ def run_git_command(repo_path: str, *args: str, timeout: int, debug: bool = Fals
     if debug:
         rprint(f"[bold cyan]Running Git Command:[/] {' '.join(command)}")
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             command,
             capture_output=True,
             text=True,

@@ -187,7 +187,7 @@ class TestCacheManagerProperties:
     @given(st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=50))
     def test_hash_generation_is_deterministic(self, items: list[str]) -> None:
         """Test that hash generation is deterministic."""
-        manager = CacheManager(Path("/tmp/test"))
+        manager = CacheManager(Path("/tmp/test"))  # nosec B108 - Test only
         hash1 = manager._get_hash(items)  # pylint: disable=protected-access
         hash2 = manager._get_hash(items)  # pylint: disable=protected-access
         check.equal(hash1, hash2)
@@ -201,7 +201,7 @@ class TestCacheManagerProperties:
 
         items2 = items.copy()
         random.shuffle(items2)
-        manager = CacheManager(Path("/tmp/test"))
+        manager = CacheManager(Path("/tmp/test"))  # nosec B108 - Test only
         hash1 = manager._get_hash(items)  # pylint: disable=protected-access
         hash2 = manager._get_hash(items2)  # pylint: disable=protected-access
         # Hashes should be the same regardless of order
@@ -216,7 +216,7 @@ class TestCacheManagerProperties:
     ) -> None:
         """Test that different item sets produce different hashes (usually)."""
         assume(sorted(items1) != sorted(items2))  # Different items
-        manager = CacheManager(Path("/tmp/test"))
+        manager = CacheManager(Path("/tmp/test"))  # nosec B108 - Test only
         hash1 = manager._get_hash(items1)  # pylint: disable=protected-access
         hash2 = manager._get_hash(items2)  # pylint: disable=protected-access
         # While hash collisions are possible, they should be rare

@@ -102,6 +102,29 @@ function fail_ok {
 		wrap_local_cmd "$@"
 }
 
+# Runs a command and only shows its output if it fails.
+function run_silent_on_pass {
+    local cmd_output
+    # Create a temporary file to hold the command's output.
+    cmd_output=$(mktemp)
+
+    # Run the command, redirecting both stdout and stderr to the temp file.
+    # The return code is captured for the final check.
+    "$@" >"$cmd_output" 2>&1
+    local exit_code=$?
+
+    # If the command failed (exit_code is not 0), print the captured output.
+    if [[ ${exit_code} -ne 0 ]]; then
+        cat "$cmd_output"
+    fi
+
+    # Clean up the temporary file.
+    rm "$cmd_output"
+
+    # Return the original exit code of the command.
+    return ${exit_code}
+}
+
 # Turn off error checking, we manually check returns from here on out.
 set +e
 
@@ -128,8 +151,14 @@ fail_bad isort --profile google --py 312 --virtual-env .venv --remove-redundant-
 # Flake8 is largely redundant but has some unique plugins we use.
 fail_bad python -m flake8 --max-line-length=${LEN} --ignore=F401,W503,E128,E203,E501 --jobs=${JOBS} ${FILES}
 
+# Bandit for security scanning.
+fail_bad bandit -q -ll -c pyproject.toml ${FILES}
+
+# Vulture for dead code identification.
+fail_bad vulture --min-confidence=80 ${FILES}
+
 # Mypy in semi-strict mode.
-fail_bad mypy  ${EXCLUDE_opt} --exclude-gitignore --sqlite-cache --strict --warn-redundant-casts --warn-unused-ignores --no-implicit-reexport --show-error-codes --show-column-numbers --warn-unreachable --disallow-untyped-decorators --disallow-any-generics --check-untyped-defs ${FILES_FILTERED}
+fail_bad mypy  ${EXCLUDE_opt} --exclude-gitignore --sqlite-cache --strict --warn-redundant-casts --warn-unused-ignores --no-implicit-reexport --show-error-codes --show-column-numbers --warn-unreachable --disallow-untyped-decorators --disallow-any-generics --check-untyped-defs ${FILES_FILTERED} |& grep -v '^Success'
 
 # pylint for the rest.
 fail_bad pylint \
@@ -145,6 +174,12 @@ fail_bad pylint \
 				 --disable=too-many-try-statements,no-else-return,suppressed-message,locally-disabled,empty-comment,no-self-use,protected-access,too-few-public-methods,consider-alternative-union-syntax,line-too-long \
 				 --fail-under=9.5 \
 				 ${FILES}
+
+# Run pytest, capturing output and only showing it on failure.
+run_silent_on_pass uv run --quiet --all-extras --isolated --locked pytest -m smoke -c /dev/null
+if [[ $? != 0 ]]; then
+    FAILED=1
+fi
 
 if [[ $FAILED == 1 ]]; then
 		echo "❌ FAILED running linters. You are not ready to commit."

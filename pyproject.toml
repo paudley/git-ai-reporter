@@ -82,7 +82,7 @@ packages = ["src/git_ai_reporter"]
 [dependency-groups]
 dev = [
     "autopep8>=2.3.2",
-    "bandit>=1.8.6",
+    "bandit[baseline,toml,sarif]>=1.8.6",
     "black>=25.1.0",
     "flake8>=7.3.0",
     "isort>=6.0.1",
@@ -173,17 +173,12 @@ timeout = 15
 testpaths = ["tests"]
 # Filter out common warnings
 filterwarnings = ["ignore::DeprecationWarning"]
-# Register custom markers to avoid warnings and enable selective runs
-markers = [
-    "vcr: marks tests that use pytest-recording for network mocking",
-    "slow: marks tests as slow running",
-    "integration: marks tests as integration tests",
-    "bdd: marks tests that use pytest-bdd for behavior-driven development",
-    "hypothesis: marks tests that use hypothesis for property-based testing",
-    "asyncio: marks tests as async tests",
-]
 
 [tool.hypothesis]
 max_examples = 10
 deadline = 1000  # 1 second deadline per test case
 suppress_health_check = ["too_slow"]
+
+[tool.bandit]
+exclude_dirs = [".venv","tests"]
+skips = ["B101"]  # Skip assert_used test - allows assert statements in tests

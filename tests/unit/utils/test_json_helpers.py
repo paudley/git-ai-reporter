@@ -25,6 +25,7 @@ from git_ai_reporter.utils.json_helpers import safe_json_encode
 class TestSafeJsonDecode:
     """Test suite for safe_json_decode function."""
 
+    @pytest.mark.smoke
     def test_valid_json_string(self) -> None:
         """Test decoding a valid JSON string."""
         json_str = '{"key": "value", "number": 42}'
@@ -190,6 +191,7 @@ class TestSafeJsonDecode:
 class TestSafeJsonEncode:
     """Test suite for safe_json_encode function."""
 
+    @pytest.mark.smoke
     def test_basic_types(self) -> None:
         """Test encoding basic Python types."""
         data = {
@@ -252,7 +254,7 @@ class TestSafeJsonEncode:
             "date": date(2025, 1, 7),
             "decimal": Decimal("99.99"),
             "uuid": UUID("deadbeef-dead-beef-dead-beefdeadbeef"),
-            "path": Path("/tmp/test"),
+            "path": Path("/tmp/test"),  # nosec B108 - Test only
             "normal": "string",
         }
         json_str = safe_json_encode(data)
@@ -261,7 +263,7 @@ class TestSafeJsonEncode:
         check.equal(decoded["date"], "2025-01-07")
         check.equal(decoded["decimal"], "99.99")
         check.equal(decoded["uuid"], "deadbeef-dead-beef-dead-beefdeadbeef")
-        check.equal(decoded["path"], "/tmp/test")
+        check.equal(decoded["path"], "/tmp/test")  # nosec B108 - Test data
         check.equal(decoded["normal"], "string")
 
     def test_indent_parameter(self) -> None:

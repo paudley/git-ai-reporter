@@ -253,10 +253,23 @@ def pytest_configure(config: pytest.Config) -> None:
     Args:
         config: Pytest configuration object.
     """
+    # Register custom markers to avoid warnings and enable selective runs
+    config.addinivalue_line(
+        "markers", "smoke: marks tests as critical smoke tests for linting integration"
+    )
+    config.addinivalue_line(
+        "markers", "vcr: marks tests that use pytest-recording for network mocking"
+    )
     config.addinivalue_line("markers", "slow: marks tests as slow running")
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line(
+        "markers", "bdd: marks tests that use pytest-bdd for behavior-driven development"
+    )
+    config.addinivalue_line(
+        "markers", "hypothesis: marks tests that use hypothesis for property-based testing"
+    )
+    config.addinivalue_line("markers", "asyncio: marks tests as async tests")
     config.addinivalue_line("markers", "requires_api_key: marks tests that need API key")
-    config.addinivalue_line("markers", "hypothesis: marks property-based tests")
 
 
 @pytest.fixture(autouse=True)

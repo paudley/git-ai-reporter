@@ -23,12 +23,15 @@ from rich.console import Console
 from rich.progress import Progress
 import typer
 
+from git_ai_reporter.analysis.git_analyzer import GitAnalyzer
 from git_ai_reporter.cache.manager import CacheManager
 from git_ai_reporter.models import AnalysisResult
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.orchestration.orchestrator import AnalysisOrchestrator
 from git_ai_reporter.orchestration.orchestrator import ArtifactGenerationParams
+from git_ai_reporter.orchestration.orchestrator import OrchestratorConfig
+from git_ai_reporter.orchestration.orchestrator import OrchestratorServices
 from git_ai_reporter.orchestration.orchestrator import WeeklyAnalysis
 from git_ai_reporter.prompt_fitting.constants import ORCHESTRATOR_SAMPLED_MARKER
 from git_ai_reporter.services.gemini import GeminiClient
@@ -39,9 +42,13 @@ from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 @pytest.fixture
 def mock_git_analyzer() -> MagicMock:
     """Create a mock GitAnalyzer."""
+    # NOTE: Using spec_set would be better, but tests use obsolete API methods
+    # that no longer exist on the real GitAnalyzer class. This needs cleanup.
     analyzer = MagicMock()
     analyzer.repo = MagicMock(spec=git.Repo)
     analyzer.repo.working_dir = "/test/repo"
+    # Add minimal type checking for Pydantic validation
+    analyzer.__class__ = GitAnalyzer
     return analyzer
 
 
@@ -125,16 +132,19 @@ def orchestrator(
     mock_console: MagicMock,
 ) -> AnalysisOrchestrator:
     """Create an AnalysisOrchestrator instance for testing."""
-    return AnalysisOrchestrator(
+    services = OrchestratorServices(
         git_analyzer=mock_git_analyzer,
         gemini_client=mock_gemini_client,
         cache_manager=mock_cache_manager,
         artifact_writer=mock_artifact_writer,
         console=mock_console,
+    )
+    config = OrchestratorConfig(
         no_cache=False,
         max_concurrent_tasks=10,
         debug=False,
     )
+    return AnalysisOrchestrator(services=services, config=config)
 
 
 @pytest.fixture
@@ -172,6 +182,41 @@ def sample_analysis_result() -> AnalysisResult:
 
 class TestAnalysisOrchestrator:
     """Test suite for AnalysisOrchestrator class."""
+
+    def test_orchestrator_instantiation_with_parameter_classes(
+        self,
+        mock_git_analyzer: MagicMock,
+        mock_gemini_client: MagicMock,
+        mock_cache_manager: MagicMock,
+        mock_artifact_writer: MagicMock,
+        mock_console: MagicMock,
+    ) -> None:
+        """Smoke test: Verify orchestrator can be instantiated with new parameter classes."""
+        services = OrchestratorServices(
+            git_analyzer=mock_git_analyzer,
+            gemini_client=mock_gemini_client,
+            cache_manager=mock_cache_manager,
+            artifact_writer=mock_artifact_writer,
+            console=mock_console,
+        )
+        config = OrchestratorConfig(
+            no_cache=False,
+            max_concurrent_tasks=10,
+            debug=False,
+        )
+
+        orchestrator = AnalysisOrchestrator(services=services, config=config)
+
+        # Verify the orchestrator was created successfully
+        check.is_not_none(orchestrator)
+        check.equal(orchestrator.services, services)
+        check.equal(orchestrator.config, config)
+
+        # Verify individual service access
+        check.equal(orchestrator.services.git_analyzer, mock_git_analyzer)
+        check.equal(orchestrator.services.gemini_client, mock_gemini_client)
+        check.equal(orchestrator.config.no_cache, False)
+        check.equal(orchestrator.config.max_concurrent_tasks, 10)
 
     @pytest.mark.asyncio
     async def test_run_no_commits(
@@ -236,16 +281,19 @@ class TestAnalysisOrchestrator:
         sample_analysis_result: AnalysisResult,
     ) -> None:
         """Test run with commits in debug mode."""
-        orchestrator = AnalysisOrchestrator(
+        services = OrchestratorServices(
             git_analyzer=mock_git_analyzer,
             gemini_client=mock_gemini_client,
             cache_manager=mock_cache_manager,
             artifact_writer=mock_artifact_writer,
             console=mock_console,
+        )
+        config = OrchestratorConfig(
             no_cache=False,
             max_concurrent_tasks=10,
             debug=True,  # Enable debug mode
         )
+        orchestrator = AnalysisOrchestrator(services=services, config=config)
 
         mock_git_analyzer.get_commits_in_range.return_value = mock_commits
         mock_git_analyzer.get_daily_commit_groups.return_value = {
@@ -889,7 +937,7 @@ class TestOrchestratorHelperMethods:
         mock_cache_manager.get_weekly_summary.return_value = None
 
         # Mock git analyzer to return diff
-        with patch.object(orchestrator.git_analyzer, "get_weekly_diff") as mock_get_diff:
+        with patch.object(orchestrator.services.git_analyzer, "get_weekly_diff") as mock_get_diff:
             mock_get_diff.return_value = "diff content"
 
             # Mock Gemini client to return summary

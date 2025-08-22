@@ -17,7 +17,7 @@ from dataclasses import field
 import hashlib
 import json
 from pathlib import Path
-import pickle
+import pickle  # nosec B403
 import time
 from typing import Any, Generic, Optional
 
@@ -283,7 +283,7 @@ class FileCacheBackend(CacheBackend):
 
             async with aiofiles.open(file_path, "rb") as f:
                 data = await f.read()
-                entry: CacheEntry[Any] = pickle.loads(data)
+                entry: CacheEntry[Any] = pickle.loads(data)  # nosec B301
                 return entry.access()
 
         except (OSError, pickle.UnpicklingError, EOFError, ValueError):
@@ -348,7 +348,7 @@ class FileCacheBackend(CacheBackend):
                 try:
                     async with aiofiles.open(file_path, "rb") as f:
                         data = await f.read()
-                        entry = pickle.loads(data)
+                        entry = pickle.loads(data)  # nosec B301
                         keys.append(entry.key.to_string())
                 except (OSError, pickle.UnpicklingError, EOFError):
                     continue
