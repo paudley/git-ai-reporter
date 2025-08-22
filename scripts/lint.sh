@@ -115,7 +115,9 @@ fail_ok ruff check ${EXCLUDE_opt} --respect-gitignore --ignore F401 --output-for
 fail_bad ruff check ${EXCLUDE_opt} --respect-gitignore --ignore F401 --output-format=concise --line-length=${LEN} --target-version=py312 --fix --no-unsafe-fixes --no-show-fixes --quiet ${FILES}
 
 # Check the github workflows
-fail_bad actionlint .github/workflows/*.yml
+if command -v actionline >/dev/null 2>&1; then
+  fail_bad actionlint .github/workflows/*.yml
+fi
 
 # Reformat consistently after potential ruff fix changes, no we fail if we can't format.
 fail_bad black -l ${LEN} -q ${FILES}
