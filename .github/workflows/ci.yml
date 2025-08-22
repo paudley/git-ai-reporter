@@ -29,15 +29,15 @@ jobs:
         python-version: ['3.12', '3.13']
         
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@v5
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         
     - name: Install uv
-      uses: astral-sh/setup-uv@cc8b0e4e1b85e4ce0a6bbe1a1e0c5db7906a9b1c # v3.2.5
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
         cache-dependency-glob: "uv.lock"
@@ -61,9 +61,9 @@ jobs:
         
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-      uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
@@ -76,15 +76,15 @@ jobs:
       contents: read
       security-events: write
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@v5
     
     - name: Set up Python
-      uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
         
     - name: Install uv
-      uses: astral-sh/setup-uv@cc8b0e4e1b85e4ce0a6bbe1a1e0c5db7906a9b1c # v3.2.5
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
         
@@ -103,7 +103,7 @@ jobs:
         
     - name: Upload security reports
       if: always()
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      uses: actions/upload-artifact@v4
       with:
         name: security-reports
         path: |
@@ -120,15 +120,15 @@ jobs:
       id-token: write
     
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@v5
     
     - name: Set up Python
-      uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
         
     - name: Install uv
-      uses: astral-sh/setup-uv@cc8b0e4e1b85e4ce0a6bbe1a1e0c5db7906a9b1c # v3.2.5
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
         
@@ -146,12 +146,12 @@ jobs:
         uv tool run twine check dist/*
         
     - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a7d5e71dd # v1.4.3
+      uses: actions/attest-build-provenance@v2
       with:
         subject-path: 'dist/*'
         
     - name: Upload artifacts
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist/

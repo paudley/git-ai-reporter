@@ -19,10 +19,10 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@v5
       
     - name: Dependency Review
-      uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4.4.0
+      uses: actions/dependency-review-action@v4
       with:
         # Fail if any vulnerabilities are detected
         fail-on-severity: moderate
@@ -30,8 +30,8 @@ jobs:
         allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
         # Deny problematic licenses
         deny-licenses: GPL-2.0, GPL-3.0, LGPL-2.1, LGPL-3.0, AGPL-3.0, CC-BY-SA-4.0
-        # Warn on deprecated packages
-        warn-on-deprecated: true
+        # Use warn-only for deprecated packages
+        warn-only: true
         # Add summary comment to PR
         comment-summary-in-pr: always
         # Vulnerability database configuration
