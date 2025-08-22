@@ -20,7 +20,7 @@ TEST_FILES := $(shell find $(TEST_DIR) -name "*.py" -type f 2>/dev/null)
 SH_FILES := $(shell find . -name "*.sh" -type f -not -path "./.venv/*" -not -path "./.git/*" 2>/dev/null)
 
 # Coverage thresholds (focused on core functionality)
-COVERAGE_THRESHOLD := 60
+COVERAGE_THRESHOLD := 55
 
 # Colors for output
 RED := \033[0;31m

@@ -186,3 +186,131 @@ New year's day coding.
         check.is_in("# Project News", content)
         check.is_in("## Week 1: January 01 - January 07, 2025", content)
         check.is_in("This week we made great progress", content)
+
+    @pytest.mark.asyncio
+    async def test_update_news_file_with_missing_directory(self, tmp_path: Path) -> None:
+        """Test updating news file when directory doesn't exist."""
+        console = Console()
+        nested_path = tmp_path / "nonexistent" / "NEWS.md"
+
+        writer = ArtifactWriter(
+            news_file=str(nested_path),
+            changelog_file=str(tmp_path / "CHANGELOG.txt"),
+            daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
+            console=console,
+        )
+
+        narrative = "Test narrative"
+        start_date = datetime(2025, 1, 1)
+        end_date = datetime(2025, 1, 7)
+
+        params = NewsFileParams(narrative=narrative, start_date=start_date, end_date=end_date)
+
+        # This should create the directory and file
+        await writer.update_news_file(params)
+
+        # Check the file was created
+        check.is_true(nested_path.exists())
+        content = nested_path.read_text()
+        check.is_in("Test narrative", content)
+
+    @pytest.mark.asyncio
+    async def test_update_changelog_with_missing_directory(self, tmp_path: Path) -> None:
+        """Test updating changelog when directory doesn't exist."""
+        console = Console()
+        nested_path = tmp_path / "nonexistent" / "CHANGELOG.txt"
+
+        writer = ArtifactWriter(
+            news_file=str(tmp_path / "NEWS.md"),
+            changelog_file=str(nested_path),
+            daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
+            console=console,
+        )
+
+        new_changelog = """### ✨ New Feature
+- New feature for testing
+"""
+
+        # This should create the directory and initial changelog structure
+        await writer.update_changelog_file(new_changelog)
+
+        # Check the file was created
+        check.is_true(nested_path.exists())
+        content = nested_path.read_text()
+        check.is_in("# Changelog", content)
+        check.is_in("## [Unreleased]", content)
+        # The artifact writer formats new entries under appropriate categories
+        check.is_in("New feature for testing", content)
+
+    @pytest.mark.asyncio
+    async def test_update_daily_updates_with_missing_directory(self, tmp_path: Path) -> None:
+        """Test updating daily updates when directory doesn't exist."""
+        console = Console()
+        nested_path = tmp_path / "nonexistent" / "DAILY_UPDATES.md"
+
+        writer = ArtifactWriter(
+            news_file=str(tmp_path / "NEWS.md"),
+            changelog_file=str(tmp_path / "CHANGELOG.txt"),
+            daily_updates_file=str(nested_path),
+            console=console,
+        )
+
+        daily_summaries = [
+            "### 2025-01-01\n\nFirst day summary",
+            "### 2025-01-02\n\nSecond day summary",
+        ]
+
+        # This should create the directory and file
+        await writer.update_daily_updates_file(daily_summaries)
+
+        # Check the file was created
+        check.is_true(nested_path.exists())
+        content = nested_path.read_text()
+        check.is_in("# Daily Updates", content)
+        check.is_in("### 2025-01-01", content)
+        check.is_in("First day summary", content)
+
+    @pytest.mark.asyncio
+    async def test_file_path_properties(
+        self,
+        artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
+    ) -> None:
+        """Test that path properties return correct values."""
+        # These properties should return Path objects
+        check.is_instance(artifact_writer.news_path, Path)
+        check.is_instance(artifact_writer.changelog_path, Path)
+        check.is_instance(artifact_writer.daily_updates_path, Path)
+
+        # Verify they contain expected filenames
+        check.is_in("NEWS.md", str(artifact_writer.news_path))
+        check.is_in("CHANGELOG.txt", str(artifact_writer.changelog_path))
+        check.is_in("DAILY_UPDATES.md", str(artifact_writer.daily_updates_path))
+
+    @pytest.mark.asyncio
+    async def test_empty_changelog_entries(
+        self,
+        artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
+    ) -> None:
+        """Test updating changelog with empty entries."""
+        # Create initial changelog
+        initial_content = """# Changelog
+
+## [Unreleased]
+
+## [1.0.0] - 2024-01-01
+### Added
+- Initial release
+"""
+        async with aiofiles.open(artifact_writer.changelog_path, "w") as f:
+            await f.write(initial_content)
+
+        # Update with empty string
+        await artifact_writer.update_changelog_file("")
+
+        # Read back the content - should be unchanged
+        async with aiofiles.open(artifact_writer.changelog_path, "r") as f:
+            content = await f.read()
+
+        check.is_in("## [Unreleased]", content)
+        check.is_in("## [1.0.0]", content)
+        check.is_in("- Initial release", content)

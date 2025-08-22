@@ -64,6 +64,7 @@ class _GeminiTokenCounter:
             ConnectError,
             ValidationError,
             ValueError,
+            OSError,
         ):
             # Fallback estimation: roughly 4 characters per token
             return TokenCount(len(content) // 4)
@@ -359,17 +360,23 @@ class GeminiClient:
                 rprint("[bold green]✅ Fallback successful! Analysis completed.[/bold green]")
                 return result
             except Exception as fallback_error:
+                orig_exc = error.last_attempt.exception()
+                orig_exc_name = type(orig_exc).__name__ if orig_exc else "Unknown"
+                orig_exc_msg = str(orig_exc) if orig_exc else "No details"
                 msg = (
                     f"Commit analysis failed after {error.last_attempt.attempt_number} attempts with {self._config.model_tier1}.\n"
                     f"Fallback to {self._config.model_tier2} also failed: {fallback_error}\n"
-                    f"Original error was: {error.last_attempt.exception()}\n"
+                    f"Original error was: {orig_exc_name}: {orig_exc_msg}\n"
                 )
                 raise GeminiClientError(msg) from error
 
         # For non-empty response errors, use original error handling
+        final_exc = error.last_attempt.exception()
+        exc_name = type(final_exc).__name__ if final_exc else "Unknown"
+        exc_msg = str(final_exc) if final_exc else "No details"
         msg = (
             f"Commit analysis failed after {error.last_attempt.attempt_number} attempts.\n"
-            f"Final error was: {error.last_attempt.exception()}\n"
+            f"Final error was: {exc_name}: {exc_msg}\n"
         )
         raise GeminiClientError(msg) from error
 
@@ -574,9 +581,11 @@ class GeminiClient:
         except RetryError as e:
             attempt_number = e.last_attempt.attempt_number
             final_error = e.last_attempt.exception()
+            error_name = type(final_error).__name__ if final_error else "Unknown"
+            error_msg = str(final_error) if final_error else "No details"
             msg = (
                 f"Daily summary failed after {attempt_number} attempts.\n"
-                f"Final error was: {final_error}\n"
+                f"Final error was: {error_name}: {error_msg}\n"
                 f"--- PROMPT SENT TO MODEL ---\n{prompt}"
             )
             raise GeminiClientError(msg) from e
@@ -777,10 +786,12 @@ class GeminiClient:
         except RetryError as e:
             attempt_number = e.last_attempt.attempt_number
             final_error = e.last_attempt.exception()
+            error_name = type(final_error).__name__ if final_error else "Unknown"
+            error_msg = str(final_error) if final_error else "No details"
             # The prompt is too large to display fully, so we show a snippet.
             msg = (
                 f"News narrative generation failed after {attempt_number} attempts.\n"
-                f"Final error was: {final_error}\n"
+                f"Final error was: {error_name}: {error_msg}\n"
                 f"--- PROMPT SENT TO MODEL (first 2000 chars) ---\n"
                 f"{prompt[:2000]}... (prompt truncated)"
             )
@@ -802,9 +813,11 @@ class GeminiClient:
         except RetryError as e:
             attempt_number = e.last_attempt.attempt_number
             final_error = e.last_attempt.exception()
+            error_name = type(final_error).__name__ if final_error else "Unknown"
+            error_msg = str(final_error) if final_error else "No details"
             msg = (
                 f"Changelog generation failed after {attempt_number} attempts.\n"
-                f"Final error was: {final_error}\n"
+                f"Final error was: {error_name}: {error_msg}\n"
                 f"--- PROMPT SENT TO MODEL ---\n{prompt}"
             )
             raise GeminiClientError(msg) from e
