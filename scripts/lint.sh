@@ -158,7 +158,7 @@ fail_bad bandit -q -ll -c pyproject.toml ${FILES}
 fail_bad vulture --min-confidence=80 ${FILES}
 
 # Mypy in semi-strict mode.
-fail_bad mypy  ${EXCLUDE_opt} --exclude-gitignore --sqlite-cache --strict --warn-redundant-casts --warn-unused-ignores --no-implicit-reexport --show-error-codes --show-column-numbers --warn-unreachable --disallow-untyped-decorators --disallow-any-generics --check-untyped-defs ${FILES_FILTERED} |& grep -v '^Success'
+fail_bad mypy  ${EXCLUDE_opt} --exclude-gitignore --sqlite-cache --strict --warn-redundant-casts --warn-unused-ignores --no-implicit-reexport --show-error-codes --show-column-numbers --warn-unreachable --disallow-untyped-decorators --disallow-any-generics --check-untyped-defs ${FILES_FILTERED}
 
 # pylint for the rest.
 fail_bad pylint \

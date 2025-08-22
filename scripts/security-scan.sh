@@ -23,6 +23,11 @@ scan_file() {
         return 0
     fi
     
+    # Skip lock files that contain legitimate package metadata
+    if [[ "$file" =~ \.lock$ ]] || [[ "$file" =~ lock\.json$ ]] || [[ "$file" =~ yarn\.lock$ ]] || [[ "$file" =~ package-lock\.json$ ]]; then
+        return 0
+    fi
+    
     # Skip binary files
     if file "$file" 2>/dev/null | grep -q "binary"; then
         return 0
@@ -131,7 +136,7 @@ scan_file() {
     
     # Check for potential PII (Personal Identifiable Information)
     # Skip PII checks for documentation files that may contain legitimate contact info
-    if [[ "$file" =~ CONTRIBUTING\.md$ ]] || [[ "$file" =~ CODE_OF_CONDUCT\.md$ ]]; then
+    if [[ "$file" =~ CONTRIBUTING\.md$ ]] || [[ "$file" =~ CODE_OF_CONDUCT\.md$ ]] || [[ "$file" =~ pyproject\.toml$ ]]; then
         return $found
     fi
     
