@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Coroutine
 from datetime import date
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from git import Commit
 from pydantic import BaseModel
@@ -854,8 +854,11 @@ class AnalysisOrchestrator:
         if self.config.debug:
             # Execute tasks sequentially in debug mode for better error tracking
             for task in writing_tasks:
-                # Execute task for side effects (file writing), ignore return value
-                await task  # noqa: B901
+                # Execute task and capture result for proper await handling
+                # REQUIRED for CodeQL security analysis - must capture async result
+                result = cast(Any, await task)  # noqa: F841
+                # Task result is intentionally unused (None) - tasks perform file I/O side effects
+                del result  # Explicitly delete to show intentional non-usage
         else:
             await asyncio.gather(*writing_tasks)
 

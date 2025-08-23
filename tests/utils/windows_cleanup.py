@@ -21,9 +21,10 @@ WINDOWS_OS_NAME: Final[str] = "nt"
 
 
 def _make_writable(path: Path) -> None:
-    """Make path writable, ignoring errors."""
+    """Make path writable for owner only, ignoring errors."""
     try:
-        os.chmod(path, 0o644)
+        # Use most restrictive permissions that still allow owner write access
+        os.chmod(path, 0o600)  # Owner read/write only - most secure
     except OSError:
         pass  # Ignore all OS-related errors
 

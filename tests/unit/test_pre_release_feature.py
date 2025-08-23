@@ -108,6 +108,13 @@ All notable changes to this project will be documented in this file.
         client._config = MagicMock()
         client._config.model_tier2 = "gemini-2.5-pro"
 
+        # Mock the token counter that's used by PromptFitter
+        mock_token_counter = MagicMock()
+        mock_token_counter.count_tokens = AsyncMock(
+            return_value=1000
+        )  # Return reasonable token count
+        client._token_counter = mock_token_counter
+
         # Use AsyncMock for async methods
         client.generate_commit_analysis = AsyncMock(
             return_value=CommitAnalysis(
