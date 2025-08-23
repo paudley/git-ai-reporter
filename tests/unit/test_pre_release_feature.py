@@ -6,6 +6,7 @@
 from datetime import datetime
 from pathlib import Path
 import tempfile
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -98,6 +99,7 @@ All notable changes to this project will be documented in this file.
     @pytest.fixture
     def mock_gemini_client(self) -> MagicMock:
         """Create a mock Gemini client."""
+
         # Create a mock that passes isinstance checks
         client = MagicMock(spec=GeminiClient)
 
@@ -106,20 +108,18 @@ All notable changes to this project will be documented in this file.
         client._config = MagicMock()
         client._config.model_tier2 = "gemini-2.5-pro"
 
-        # Make async methods return AsyncMock results using correct method names
-        async def mock_generate_commit_analysis(*_args, **_kwargs):
-            return CommitAnalysis(
+        # Use AsyncMock for async methods
+        client.generate_commit_analysis = AsyncMock(
+            return_value=CommitAnalysis(
                 changes=[Change(summary="Added feature", category="New Feature")], trivial=False
             )
-
-        async def mock_synthesize_daily_summary(*_args, **_kwargs):
-            return "Daily summary content."
-
-        async def mock_generate_news_narrative(*_args, **_kwargs):
-            return "This week brought significant improvements including new authentication features and performance enhancements."
-
-        async def mock_generate_changelog_entries(*_args, **_kwargs):
-            return """### Added
+        )
+        client.synthesize_daily_summary = AsyncMock(return_value="Daily summary content.")
+        client.generate_news_narrative = AsyncMock(
+            return_value="This week brought significant improvements including new authentication features and performance enhancements."
+        )
+        client.generate_changelog_entries = AsyncMock(
+            return_value="""### Added
 - New user authentication system
 
 ### Fixed
@@ -127,11 +127,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - API endpoint updates"""
-
-        client.generate_commit_analysis.side_effect = mock_generate_commit_analysis
-        client.synthesize_daily_summary.side_effect = mock_synthesize_daily_summary
-        client.generate_news_narrative.side_effect = mock_generate_news_narrative
-        client.generate_changelog_entries.side_effect = mock_generate_changelog_entries
+        )
 
         return client
 

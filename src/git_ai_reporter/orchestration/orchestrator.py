@@ -854,7 +854,8 @@ class AnalysisOrchestrator:
         if self.config.debug:
             # Execute tasks sequentially in debug mode for better error tracking
             for task in writing_tasks:
-                await task  # Each task has side effects (writes files), returns None
+                # Execute task for side effects (file writing), ignore return value
+                await task  # noqa: B901
         else:
             await asyncio.gather(*writing_tasks)
 
