@@ -40,80 +40,80 @@ NC := \033[0m # No Color
 
 # Help target - displays available commands
 help:
-	@echo "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║         Git AI Reporter - Development Makefile             ║$(NC)"
-	@echo "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(GREEN)Development Commands:$(NC)"
-	@echo "  make install        - Create venv and install dependencies"
-	@echo "  make clean          - Remove build artifacts and caches"
-	@echo "  make format         - Format code with ruff"
-	@echo "  make venv           - Create virtual environment"
-	@echo "  make update-deps    - Update all dependencies to latest versions"
-	@echo "  make freeze-deps    - Freeze current dependencies"
-	@echo ""
-	@echo "$(GREEN)Testing Commands:$(NC)"
-	@echo "  make test           - Run all tests"
-	@echo "  make test-fast      - Run tests without coverage"
-	@echo "  make coverage       - Run tests with coverage report"
-	@echo "  make test-unit      - Run unit tests only"
-	@echo "  make test-integration - Run integration tests only"
-	@echo ""
-	@echo "$(GREEN)Quality Checks:$(NC)"
-	@echo "  make lint           - Run comprehensive linting"
-	@echo "  make lint-fix       - Auto-fix linting issues"
-	@echo "  make type-check     - Run mypy type checking"
-	@echo "  make security-scan  - Scan for secrets and vulnerabilities"
-	@echo "  make quality-check  - Check code quality standards"
-	@echo "  make shellcheck     - Validate shell scripts"
-	@echo ""
-	@echo "$(GREEN)Git Hooks:$(NC)"
-	@echo "  make install-hooks  - Install git hooks"
-	@echo "  make pre-commit     - Run pre-commit checks"
-	@echo "  make pre-push       - Run pre-push checks"
-	@echo ""
-	@echo "$(GREEN)Combined Checks:$(NC)"
-	@echo "  make check-all      - Run ALL checks (lint, test, security, etc.)"
-	@echo "  make check-fast     - Quick checks (format, lint, type)"
-	@echo "  make ci             - Run CI pipeline checks"
-	@echo ""
-	@echo "$(GREEN)Application:$(NC)"
-	@echo "  make run            - Run the application"
-	@echo "  make build          - Build distribution packages"
-	@echo "  make docs           - Generate documentation"
-	@echo ""
-	@echo "$(YELLOW)Pro tip: Use 'make check-all' before committing!$(NC)"
+	@echo -e "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
+	@echo -e "$(BLUE)║         Git AI Reporter - Development Makefile             ║$(NC)"
+	@echo -e "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
+	@echo -e ""
+	@echo -e "$(GREEN)Development Commands:$(NC)"
+	@echo -e "  make install        - Create venv and install dependencies"
+	@echo -e "  make clean          - Remove build artifacts and caches"
+	@echo -e "  make format         - Format code with ruff"
+	@echo -e "  make venv           - Create virtual environment"
+	@echo -e "  make update-deps    - Update all dependencies to latest versions"
+	@echo -e "  make freeze-deps    - Freeze current dependencies"
+	@echo -e ""
+	@echo -e "$(GREEN)Testing Commands:$(NC)"
+	@echo -e "  make test           - Run all tests"
+	@echo -e "  make test-fast      - Run tests without coverage"
+	@echo -e "  make coverage       - Run tests with coverage report"
+	@echo -e "  make test-unit      - Run unit tests only"
+	@echo -e "  make test-integration - Run integration tests only"
+	@echo -e ""
+	@echo -e "$(GREEN)Quality Checks:$(NC)"
+	@echo -e "  make lint           - Run comprehensive linting"
+	@echo -e "  make lint-fix       - Auto-fix linting issues"
+	@echo -e "  make type-check     - Run mypy type checking"
+	@echo -e "  make security-scan  - Scan for secrets and vulnerabilities"
+	@echo -e "  make quality-check  - Check code quality standards"
+	@echo -e "  make shellcheck     - Validate shell scripts"
+	@echo -e ""
+	@echo -e "$(GREEN)Git Hooks:$(NC)"
+	@echo -e "  make install-hooks  - Install git hooks"
+	@echo -e "  make pre-commit     - Run pre-commit checks"
+	@echo -e "  make pre-push       - Run pre-push checks"
+	@echo -e ""
+	@echo -e "$(GREEN)Combined Checks:$(NC)"
+	@echo -e "  make check-all      - Run ALL checks (lint, test, security, etc.)"
+	@echo -e "  make check-fast     - Quick checks (format, lint, type)"
+	@echo -e "  make ci             - Run CI pipeline checks"
+	@echo -e ""
+	@echo -e "$(GREEN)Application:$(NC)"
+	@echo -e "  make run            - Run the application"
+	@echo -e "  make build          - Build distribution packages"
+	@echo -e "  make docs           - Generate documentation"
+	@echo -e ""
+	@echo -e "$(YELLOW)Pro tip: Use 'make check-all' before committing!$(NC)"
 
 # Virtual environment creation
 venv:
-	@echo "$(BLUE)Creating virtual environment...$(NC)"
+	@echo -e "$(BLUE)Creating virtual environment...$(NC)"
 	@$(UV) venv $(VENV)
-	@echo "$(GREEN)✓ Virtual environment created$(NC)"
+	@echo -e "$(GREEN)✓ Virtual environment created$(NC)"
 
 # Install dependencies
 install: venv
-	@echo "$(BLUE)Installing dependencies...$(NC)"
+	@echo -e "$(BLUE)Installing dependencies...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) pip sync pyproject.toml
-	@echo "$(GREEN)✓ Dependencies installed$(NC)"
-	@echo "$(BLUE)Installing git hooks...$(NC)"
+	@echo -e "$(GREEN)✓ Dependencies installed$(NC)"
+	@echo -e "$(BLUE)Installing git hooks...$(NC)"
 	@$(SCRIPTS_DIR)/install-hooks.sh
-	@echo "$(GREEN)✓ Installation complete$(NC)"
+	@echo -e "$(GREEN)✓ Installation complete$(NC)"
 
 # Update dependencies to latest versions
 update-deps: venv
-	@echo "$(BLUE)Updating dependencies to latest versions...$(NC)"
+	@echo -e "$(BLUE)Updating dependencies to latest versions...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) pip install --upgrade -e .
-	@echo "$(GREEN)✓ Dependencies updated$(NC)"
+	@echo -e "$(GREEN)✓ Dependencies updated$(NC)"
 
 # Freeze current dependencies
 freeze-deps: venv
-	@echo "$(BLUE)Freezing dependencies...$(NC)"
+	@echo -e "$(BLUE)Freezing dependencies...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) pip freeze > requirements.txt
-	@echo "$(GREEN)✓ Dependencies frozen to requirements.txt$(NC)"
+	@echo -e "$(GREEN)✓ Dependencies frozen to requirements.txt$(NC)"
 
 # Clean build artifacts and caches
 clean:
-	@echo "$(BLUE)Cleaning build artifacts and caches...$(NC)"
+	@echo -e "$(BLUE)Cleaning build artifacts and caches...$(NC)"
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
@@ -125,90 +125,90 @@ clean:
 	@find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
-	@echo "$(GREEN)✓ Cleaned$(NC)"
+	@echo -e "$(GREEN)✓ Cleaned$(NC)"
 
 # Format code with ruff
 format:
-	@echo "$(BLUE)Formatting code with ruff...$(NC)"
+	@echo -e "$(BLUE)Formatting code with ruff...$(NC)"
 	@$(VENV_ACTIVATE) && ruff format $(SRC_DIR) $(TEST_DIR)
-	@echo "$(GREEN)✓ Code formatted$(NC)"
+	@echo -e "$(GREEN)✓ Code formatted$(NC)"
 
 # Run comprehensive linting
 lint:
-	@echo "$(BLUE)Running comprehensive lint checks...$(NC)"
+	@echo -e "$(BLUE)Running comprehensive lint checks...$(NC)"
 	@$(VENV_ACTIVATE) && $(SCRIPTS_DIR)/lint.sh
-	@echo "$(GREEN)✓ Linting passed$(NC)"
+	@echo -e "$(GREEN)✓ Linting passed$(NC)"
 
 # Auto-fix linting issues
 lint-fix:
-	@echo "$(BLUE)Auto-fixing linting issues...$(NC)"
+	@echo -e "$(BLUE)Auto-fixing linting issues...$(NC)"
 	@$(VENV_ACTIVATE) && ruff check --fix $(SRC_DIR) $(TEST_DIR)
 	@$(VENV_ACTIVATE) && ruff format $(SRC_DIR) $(TEST_DIR)
-	@echo "$(GREEN)✓ Linting issues fixed$(NC)"
+	@echo -e "$(GREEN)✓ Linting issues fixed$(NC)"
 
 # Quick lint check with ruff only
 lint-quick:
-	@echo "$(BLUE)Running quick lint check...$(NC)"
+	@echo -e "$(BLUE)Running quick lint check...$(NC)"
 	@$(VENV_ACTIVATE) && ruff check $(SRC_DIR) $(TEST_DIR)
 	@$(VENV_ACTIVATE) && ruff format --check $(SRC_DIR) $(TEST_DIR)
-	@echo "$(GREEN)✓ Quick lint passed$(NC)"
+	@echo -e "$(GREEN)✓ Quick lint passed$(NC)"
 
 # Type checking with mypy
 type-check:
-	@echo "$(BLUE)Running type checking with mypy...$(NC)"
+	@echo -e "$(BLUE)Running type checking with mypy...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run mypy $(SRC_DIR) --strict
-	@echo "$(GREEN)✓ Type checking passed$(NC)"
+	@echo -e "$(GREEN)✓ Type checking passed$(NC)"
 
 # Run all tests
 test:
-	@echo "$(BLUE)Running all tests...$(NC)"
+	@echo -e "$(BLUE)Running all tests...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -v
-	@echo "$(GREEN)✓ All tests passed$(NC)"
+	@echo -e "$(GREEN)✓ All tests passed$(NC)"
 
 # Run tests without coverage (faster)
 test-fast:
-	@echo "$(BLUE)Running tests (fast mode)...$(NC)"
-	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -v --no-cov
-	@echo "$(GREEN)✓ Tests passed$(NC)"
+	@echo -e "$(BLUE)Running tests (fast mode)...$(NC)"
+	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -q -q --no-cov
+	@echo -e "$(GREEN)✓ Tests passed$(NC)"
 
 # Run tests with coverage
 coverage:
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
+	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -v \
 		--cov=$(SRC_DIR) \
 		--cov-report=term-missing \
 		--cov-report=html \
 		--cov-fail-under=$(COVERAGE_THRESHOLD)
-	@echo "$(GREEN)✓ Coverage check passed (>= $(COVERAGE_THRESHOLD)%)$(NC)"
-	@echo "$(YELLOW)Coverage report: open htmlcov/index.html$(NC)"
+	@echo -e "$(GREEN)✓ Coverage check passed (>= $(COVERAGE_THRESHOLD)%)$(NC)"
+	@echo -e "$(YELLOW)Coverage report: open htmlcov/index.html$(NC)"
 
 # Run unit tests only
 test-unit:
-	@echo "$(BLUE)Running unit tests...$(NC)"
+	@echo -e "$(BLUE)Running unit tests...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/unit -v
-	@echo "$(GREEN)✓ Unit tests passed$(NC)"
+	@echo -e "$(GREEN)✓ Unit tests passed$(NC)"
 
 # Run integration tests only
 test-integration:
-	@echo "$(BLUE)Running integration tests...$(NC)"
+	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/integration -v
-	@echo "$(GREEN)✓ Integration tests passed$(NC)"
+	@echo -e "$(GREEN)✓ Integration tests passed$(NC)"
 
 # Security scan for secrets and vulnerabilities
 security-scan:
-	@echo "$(BLUE)Running security scan...$(NC)"
+	@echo -e "$(BLUE)Running security scan...$(NC)"
 	@$(SCRIPTS_DIR)/security-scan.sh $(PY_FILES)
-	@echo "$(GREEN)✓ Security scan passed$(NC)"
+	@echo -e "$(GREEN)✓ Security scan passed$(NC)"
 
 # Quality checks (license headers, file sizes, etc.)
 quality-check:
-	@echo "$(BLUE)Running quality checks...$(NC)"
+	@echo -e "$(BLUE)Running quality checks...$(NC)"
 	@SKIP_BRANCH_CHECK=1 $(SCRIPTS_DIR)/check-quality.sh all $(PY_FILES)
-	@echo "$(GREEN)✓ Quality checks passed$(NC)"
+	@echo -e "$(GREEN)✓ Quality checks passed$(NC)"
 
 # Validate shell scripts
 shellcheck:
-	@echo "$(BLUE)Validating shell scripts...$(NC)"
+	@echo -e "$(BLUE)Validating shell scripts...$(NC)"
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		echo "Found $$(echo $(SH_FILES) | wc -w) shell scripts to check"; \
 		for script in $(SH_FILES); do \
@@ -222,29 +222,29 @@ shellcheck:
 
 # Pre-commit checks
 pre-commit:
-	@echo "$(BLUE)Running pre-commit checks...$(NC)"
+	@echo -e "$(BLUE)Running pre-commit checks...$(NC)"
 	@.git/hooks/pre-commit || true
-	@echo "$(GREEN)✓ Pre-commit checks complete$(NC)"
+	@echo -e "$(GREEN)✓ Pre-commit checks complete$(NC)"
 
 # Pre-push checks
 pre-push:
-	@echo "$(BLUE)Running pre-push checks...$(NC)"
+	@echo -e "$(BLUE)Running pre-push checks...$(NC)"
 	@SKIP_BRANCH_CHECK=1 .git/hooks/pre-push || true
-	@echo "$(GREEN)✓ Pre-push checks complete$(NC)"
+	@echo -e "$(GREEN)✓ Pre-push checks complete$(NC)"
 
 # Install git hooks
 install-hooks:
-	@echo "$(BLUE)Installing git hooks...$(NC)"
+	@echo -e "$(BLUE)Installing git hooks...$(NC)"
 	@$(SCRIPTS_DIR)/install-hooks.sh
-	@echo "$(GREEN)✓ Git hooks installed$(NC)"
+	@echo -e "$(GREEN)✓ Git hooks installed$(NC)"
 
 # Quick checks (format, lint, type)
 check-fast: format lint-quick type-check
-	@echo "$(GREEN)✓ Quick checks passed$(NC)"
+	@echo -e "$(GREEN)✓ Quick checks passed$(NC)"
 
 # CI pipeline checks
 ci: lint type-check test coverage security-scan quality-check
-	@echo "$(GREEN)✓ CI checks passed$(NC)"
+	@echo -e "$(GREEN)✓ CI checks passed$(NC)"
 
 ## -----------------------------------------------------------------------------
 ## Enhanced Quality Assurance - CRITICAL PRODUCTION SAFETY
@@ -270,94 +270,90 @@ ci: lint type-check test coverage security-scan quality-check
 # MASTER SAFETY CHECK - Catches ALL possible production issues
 # Order matters: Fast checks first, then slow checks, Docker last
 check-all:
-	@echo "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║              RUNNING COMPREHENSIVE CHECK-ALL                ║$(NC)"
-	@echo "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
-	@echo ""
+	@echo -e "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
+	@echo -e "$(BLUE)║              RUNNING COMPREHENSIVE CHECK-ALL                ║$(NC)"
+	@echo -e "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
+	@echo -e ""
 
-	@echo "$(BLUE)[1/10] Code Formatting Check$(NC)"
-	@echo "$(BLUE)Checking code formatting...$(NC)"
+	@echo -e "$(BLUE)[1/9] Code Formatting Check$(NC)"
+	@echo -e "$(BLUE)Checking code formatting...$(NC)"
 	@if ! $(VENV_ACTIVATE) && ruff format --check . > /dev/null 2>&1; then \
 		echo "$(YELLOW)⚠️  Code needs formatting. Running formatter...$(NC)"; \
 		$(MAKE) --no-print-directory format; \
 	else \
 		echo "$(GREEN)✓ Code formatting is correct$(NC)"; \
 	fi
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[2/10] Python Linting (Full)$(NC)"
+	@echo -e "$(BLUE)[2/9] Python Linting (Full)$(NC)"
 	@$(MAKE) --no-print-directory lint
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[3/10] Type Checking$(NC)"
+	@echo -e "$(BLUE)[3/9] Type Checking$(NC)"
 	@$(MAKE) --no-print-directory type-check
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[4/10] Shell Script Validation$(NC)"
+	@echo -e "$(BLUE)[4/9] Shell Script Validation$(NC)"
 	@$(MAKE) --no-print-directory shellcheck
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[5/10] Security Scanning$(NC)"
+	@echo -e "$(BLUE)[5/9] Security Scanning$(NC)"
 	@$(MAKE) --no-print-directory security-scan
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[6/10] Quality Standards$(NC)"
+	@echo -e "$(BLUE)[6/9] Quality Standards$(NC)"
 	@$(MAKE) --no-print-directory quality-check
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[7/10] Unit Tests$(NC)"
-	@$(MAKE) --no-print-directory test-unit
-	@echo ""
+	@echo -e "$(BLUE)[7/9] Fast Tests$(NC)"
+	@$(MAKE) --no-print-directory test-fast
+	@echo -e ""
 
-	@echo "$(BLUE)[8/10] Integration Tests$(NC)"
-	@$(MAKE) --no-print-directory test-integration || echo "$(YELLOW)No integration tests found$(NC)"
-	@echo ""
-
-	@echo "$(BLUE)[9/10] Coverage Analysis$(NC)"
+	@echo -e "$(BLUE)[8/9] Coverage Analysis$(NC)"
 	@$(MAKE) --no-print-directory coverage
-	@echo ""
+	@echo -e ""
 
-	@echo "$(BLUE)[10/10] Documentation Check$(NC)"
-	@echo "Checking for required documentation files..."
+	@echo -e "$(BLUE)[9/9] Documentation Check$(NC)"
+	@echo -e "Checking for required documentation files..."
 	@test -f README.md || (echo "$(RED)✗ Missing README.md$(NC)" && exit 1)
 	@test -f LICENSE || (echo "$(RED)✗ Missing LICENSE$(NC)" && exit 1)
 	@test -f CLAUDE.md || (echo "$(RED)✗ Missing CLAUDE.md$(NC)" && exit 1)
-	@echo "$(GREEN)✓ Documentation files present$(NC)"
-	@echo ""
+	@echo -e "$(GREEN)✓ Documentation files present$(NC)"
+	@echo -e ""
 
-	@echo "$(GREEN)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(GREEN)║           🎉 ALL CHECKS PASSED SUCCESSFULLY! 🎉             ║$(NC)"
-	@echo "$(GREEN)╚══════════════════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Summary:$(NC)"
-	@echo "  ✓ Code properly formatted"
-	@echo "  ✓ All linting checks passed (10.00/10)"
-	@echo "  ✓ Type checking passed"
-	@echo "  ✓ Shell scripts validated"
-	@echo "  ✓ No security vulnerabilities"
-	@echo "  ✓ Quality standards met"
-	@echo "  ✓ All tests passing"
-	@echo "  ✓ Comprehensive code coverage maintained"
-	@echo "  ✓ Documentation complete"
-	@echo ""
-	@echo "$(GREEN)Ready for commit/push!$(NC)"
+	@echo -e "$(GREEN)╔══════════════════════════════════════════════════════════════╗$(NC)"
+	@echo -e "$(GREEN)║           🎉 ALL CHECKS PASSED SUCCESSFULLY! 🎉             ║$(NC)"
+	@echo -e "$(GREEN)╚══════════════════════════════════════════════════════════════╝$(NC)"
+	@echo -e ""
+	@echo -e "$(YELLOW)Summary:$(NC)"
+	@echo -e "  ✓ Code properly formatted"
+	@echo -e "  ✓ All linting checks passed (10.00/10)"
+	@echo -e "  ✓ Type checking passed"
+	@echo -e "  ✓ Shell scripts validated"
+	@echo -e "  ✓ No security vulnerabilities"
+	@echo -e "  ✓ Quality standards met"
+	@echo -e "  ✓ All tests passing"
+	@echo -e "  ✓ Comprehensive code coverage maintained"
+	@echo -e "  ✓ Documentation complete"
+	@echo -e ""
+	@echo -e "$(GREEN)Ready for commit/push!$(NC)"
 
 # Run the application
 run:
-	@echo "$(BLUE)Running git-ai-reporter...$(NC)"
+	@echo -e "$(BLUE)Running git-ai-reporter...$(NC)"
 	@$(VENV_ACTIVATE) && $(PYTHON) -m git_ai_reporter --help
 
 # Build distribution packages
 build: clean
-	@echo "$(BLUE)Building distribution packages...$(NC)"
+	@echo -e "$(BLUE)Building distribution packages...$(NC)"
 	@$(VENV_ACTIVATE) && $(PYTHON) -m build
-	@echo "$(GREEN)✓ Build complete. Check dist/ directory$(NC)"
+	@echo -e "$(GREEN)✓ Build complete. Check dist/ directory$(NC)"
 
 # Generate documentation
 docs:
-	@echo "$(BLUE)Generating documentation...$(NC)"
+	@echo -e "$(BLUE)Generating documentation...$(NC)"
 	@$(VENV_ACTIVATE) && $(PYTHON) -m pydoc -w $(SRC_DIR)/git_ai_reporter
-	@echo "$(GREEN)✓ Documentation generated$(NC)"
+	@echo -e "$(GREEN)✓ Documentation generated$(NC)"
 
 # Development shortcuts
 .PHONY: f l t c

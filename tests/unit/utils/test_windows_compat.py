@@ -8,10 +8,8 @@ issues early and ensure compatibility across platforms.
 """
 
 import gc
-import logging
 import os
 from pathlib import Path
-import shutil
 import tempfile
 import time
 from typing import Final
@@ -20,83 +18,15 @@ import git
 import pytest
 import pytest_check as check
 
+# Import shared Windows cleanup utilities
+from tests.utils.windows_cleanup import safe_cleanup_on_windows
+
 # Constants for magic values
 WINDOWS_OS_NAME: Final[str] = "nt"
 BACKSLASH: Final[str] = "\\"
 ASCII_LIMIT: Final[int] = 127
 CAFE_TEXT: Final[str] = "Café"
 ASCII_ENCODINGS: Final[frozenset[str]] = frozenset(["ascii", "cp1252"])
-
-
-def _make_path_writable(path: Path) -> None:
-    """Make path writable, ignoring errors."""
-    try:
-        os.chmod(path, 0o777)
-    except OSError:
-        pass  # Ignore all OS-related errors
-
-
-def _prepare_windows_cleanup(temp_path: Path) -> None:
-    """Prepare directory for cleanup on Windows."""
-    if os.name != WINDOWS_OS_NAME:
-        return
-
-    time.sleep(0.1)  # Brief pause to let processes release locks
-
-    # Make all files and directories writable
-    for root, dirs, files in os.walk(temp_path):
-        for d in dirs:
-            _make_path_writable(Path(root) / d)
-        for f in files:
-            _make_path_writable(Path(root) / f)
-
-
-def _handle_cleanup_failure(temp_path: Path, error: OSError, is_final_attempt: bool) -> None:
-    """Handle cleanup failure based on platform and attempt."""
-    if not is_final_attempt:
-        return  # Will retry
-
-    if os.name == WINDOWS_OS_NAME:
-        # On Windows, log warning but don't raise - CI constraint
-        logging.warning("Could not clean up %s: %s", temp_path, error)
-        return
-
-    # On Unix systems, re-raise the error
-    raise error
-
-
-def _safe_cleanup_on_windows(temp_path: Path, max_retries: int = 3) -> None:
-    """Safely clean up temporary directory on Windows with retry logic.
-
-    This function implements the same cleanup strategy as used in conftest.py
-    to ensure consistent behavior across test modules.
-
-    Args:
-        temp_path: Path to temporary directory to clean up
-        max_retries: Maximum number of cleanup attempts
-    """
-    if not temp_path.exists():
-        return
-
-    # Force close any Git repositories that might be holding locks
-    if hasattr(git.Repo, "_clear_caches"):
-        git.Repo._clear_caches()  # type: ignore[attr-defined]
-
-    for attempt in range(max_retries):
-        try:
-            _prepare_windows_cleanup(temp_path)
-
-            # Try to remove the directory
-            shutil.rmtree(temp_path, ignore_errors=attempt < max_retries - 1)
-            return  # Success!
-
-        except OSError as error:
-            is_final_attempt = attempt == max_retries - 1
-            _handle_cleanup_failure(temp_path, error, is_final_attempt)
-
-            if not is_final_attempt:
-                # Wait longer between retries
-                time.sleep(0.2 * (attempt + 1))
 
 
 class TestWindowsFileHandling:
@@ -127,7 +57,7 @@ class TestWindowsFileHandling:
 
             # Test that our cleanup function works
             check.is_true(temp_path.exists())
-            _safe_cleanup_on_windows(temp_path)
+            safe_cleanup_on_windows(temp_path)
 
             # On Windows, we allow cleanup to fail gracefully
             if os.name != WINDOWS_OS_NAME:
@@ -137,7 +67,7 @@ class TestWindowsFileHandling:
         except (OSError, git.exc.GitError):
             # Ensure cleanup even if test fails
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass  # Ignore cleanup errors
             raise
@@ -170,13 +100,13 @@ class TestWindowsFileHandling:
             # Test cleanup of all repos
             for temp_path in temp_paths:
                 check.is_true(temp_path.exists())
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
 
         finally:
             # Ensure all temp paths are cleaned up
             for temp_path in temp_paths:
                 try:
-                    _safe_cleanup_on_windows(temp_path)
+                    safe_cleanup_on_windows(temp_path)
                 except PermissionError:
                     pass  # Ignore cleanup errors
 
@@ -205,11 +135,11 @@ class TestWindowsFileHandling:
 
             # Test that cleanup can handle files with different permissions
             check.is_true(temp_path.exists())
-            _safe_cleanup_on_windows(temp_path)
+            safe_cleanup_on_windows(temp_path)
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -246,7 +176,7 @@ class TestWindowsFileHandling:
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -306,7 +236,7 @@ class TestWindowsPathHandling:
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -346,7 +276,7 @@ class TestConcurrentFileAccess:
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -384,13 +314,13 @@ class TestConcurrentFileAccess:
             # Clean up all repos
             for temp_path in repos_created:
                 check.is_true(temp_path.exists())
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
 
         finally:
             # Ensure cleanup even if test fails
             for temp_path in repos_created:
                 try:
-                    _safe_cleanup_on_windows(temp_path)
+                    safe_cleanup_on_windows(temp_path)
                 except PermissionError:
                     pass
 
@@ -429,11 +359,11 @@ class TestWindowsSpecificIssues:
                 time.sleep(0.1)
 
             # Test that cleanup works without WinError 32
-            _safe_cleanup_on_windows(temp_path)
+            safe_cleanup_on_windows(temp_path)
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -456,11 +386,11 @@ class TestWindowsSpecificIssues:
             check.is_true(test_file.exists())
 
             # Test cleanup of deep paths
-            _safe_cleanup_on_windows(temp_path)
+            safe_cleanup_on_windows(temp_path)
 
         finally:
             try:
-                _safe_cleanup_on_windows(temp_path)
+                safe_cleanup_on_windows(temp_path)
             except PermissionError:
                 pass
 
@@ -482,7 +412,7 @@ def test_fixture_compatibility() -> None:
         check.is_true(test_file.exists())
 
     finally:
-        _safe_cleanup_on_windows(temp_path)
+        safe_cleanup_on_windows(temp_path)
 
 
 # Tests focus on cross-platform compatibility
