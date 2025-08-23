@@ -48,5 +48,5 @@ jobs:
           # comma-separated list of test IDs to skip
           skips: B101  # Skip assert_used test which is inappropriate for test files
           # path to a .bandit file that supplies command line arguments
-          ini_path: .bandit
+          # ini_path: .bandit
 
