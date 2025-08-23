@@ -346,7 +346,7 @@ run:
 # Build distribution packages
 build: clean
 	@echo -e "$(BLUE)Building distribution packages...$(NC)"
-	@$(VENV_ACTIVATE) && $(PYTHON) -m build
+	@$(UV) build
 	@echo -e "$(GREEN)✓ Build complete. Check dist/ directory$(NC)"
 
 # Generate documentation

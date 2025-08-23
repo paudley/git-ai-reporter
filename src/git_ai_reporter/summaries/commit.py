@@ -7,14 +7,13 @@ from typing import Final
 
 from git_ai_reporter.models import COMMIT_CATEGORIES
 
-
 # Used by gemini.py for commit analysis
-# Create category list dynamically for prompt template
-def _build_prompt_template() -> str:
-    """Build the prompt template with category list."""
-    category_list = ", ".join(f"'{cat}'" for cat in COMMIT_CATEGORIES)
+# Build the prompt template with dynamic category list
+_category_list: str = ", ".join(f"'{cat}'" for cat in COMMIT_CATEGORIES)
 
-    return f"""You are an expert senior software engineer tasked with analyzing a git diff to produce a
+PROMPT_TEMPLATE: Final[
+    str
+] = f"""You are an expert senior software engineer tasked with analyzing a git diff to produce a
 structured summary. Your goal is to identify all distinct logical changes within the commit
 and format them as a JSON object.
 This output will be used to automatically generate changelogs and project reports.
@@ -29,7 +28,7 @@ This output will be used to automatically generate changelogs and project report
 3.  **Summarize Each Change:** For each change, write a concise, one-sentence summary in the
     imperative mood (e.g., "Add new user authentication endpoint.").
 4.  **Categorize Each Change:** Assign one of the following categories to each change:
-    {category_list}.
+    {_category_list}.
 5.  **Assess Triviality:** Determine if the *entire* commit is trivial. A commit is trivial only if
     ALL its changes are categorized as `Documentation`, `Styling`, `Tests`, or `Chore`. If any
     change
@@ -146,10 +145,6 @@ Now, analyze the following diff and provide the JSON response.
 {{diff}}
 ```
 """
-
-
-# Create the template by calling the function
-PROMPT_TEMPLATE: Final[str] = _build_prompt_template()
 
 TRIVIALITY_PROMPT: Final[
     str
