@@ -49,7 +49,7 @@ First week summary.
 
 Second week summary.
 """
-        async with aiofiles.open(artifact_writer.news_path, "w") as f:
+        async with aiofiles.open(artifact_writer.news_path, "w", encoding="utf-8") as f:
             await f.write(news_content)
 
         # Create DAILY_UPDATES.md with daily summaries
@@ -71,7 +71,7 @@ New year prep work.
 
 New year's day coding.
 """
-        async with aiofiles.open(artifact_writer.daily_updates_path, "w") as f:
+        async with aiofiles.open(artifact_writer.daily_updates_path, "w", encoding="utf-8") as f:
             await f.write(daily_content)
 
         history = (
@@ -110,7 +110,7 @@ New year's day coding.
 ### ✨ New Feature
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
             await f.write(changelog_content)
 
         # Update with new changelog that has an New Feature section
@@ -125,7 +125,7 @@ New year's day coding.
         await artifact_writer.update_changelog_file(new_changelog)
 
         # Read the updated file
-        async with aiofiles.open(artifact_writer.changelog_path, "r") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
             updated_content = await f.read()
 
         # Should merge the Added sections
@@ -147,7 +147,7 @@ New year's day coding.
 ### Added
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
             await f.write(changelog_content)
 
         new_changelog = """### Added
@@ -157,7 +157,7 @@ New year's day coding.
         await artifact_writer.update_changelog_file(new_changelog)
 
         # Read the updated file
-        async with aiofiles.open(artifact_writer.changelog_path, "r") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
             updated_content = await f.read()
 
         # When there's no [Unreleased] section, it should remain unchanged
@@ -180,7 +180,7 @@ New year's day coding.
         await artifact_writer.update_news_file(params)
 
         # Check the file was created
-        async with aiofiles.open(artifact_writer.news_path, "r") as f:
+        async with aiofiles.open(artifact_writer.news_path, "r", encoding="utf-8") as f:
             content = await f.read()
 
         check.is_in("# Project News", content)
@@ -301,14 +301,14 @@ New year's day coding.
 ### Added
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
             await f.write(initial_content)
 
         # Update with empty string
         await artifact_writer.update_changelog_file("")
 
         # Read back the content - should be unchanged
-        async with aiofiles.open(artifact_writer.changelog_path, "r") as f:
+        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
             content = await f.read()
 
         check.is_in("## [Unreleased]", content)

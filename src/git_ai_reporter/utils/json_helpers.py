@@ -69,8 +69,12 @@ def _robust_json_encoder(obj: object) -> str:
     """
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    if isinstance(obj, (Decimal, UUID, Path)):
+    if isinstance(obj, Decimal):
         return str(obj)
+    if isinstance(obj, UUID):
+        return str(obj)
+    if isinstance(obj, Path):
+        return obj.as_posix()  # Use POSIX format for cross-platform consistency
     # Let the default encoder raise the TypeError for truly unknown types.
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
