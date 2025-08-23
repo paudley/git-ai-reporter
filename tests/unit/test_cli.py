@@ -224,6 +224,7 @@ class TestMainCommand:
                 cache_dir=".git-report-cache",
                 no_cache=False,
                 debug=False,
+                pre_release=None,
             )
 
         check.equal(exc_info.value.exit_code, 1)
@@ -252,6 +253,7 @@ class TestMainCommand:
                 cache_dir=".git-report-cache",
                 no_cache=False,
                 debug=False,
+                pre_release=None,
             )
 
         check.equal(exc_info.value.exit_code, 1)
@@ -339,6 +341,7 @@ class TestMainCommand:
             cache_dir=".git-report-cache",
             no_cache=False,
             debug=False,
+            pre_release=None,
         )
 
         # Verify cache manager was created
@@ -403,6 +406,7 @@ class TestMainCommand:
             cache_dir=".git-report-cache",
             no_cache=True,
             debug=False,
+            pre_release=None,
         )
 
         # Verify cache manager was created (it's always created)

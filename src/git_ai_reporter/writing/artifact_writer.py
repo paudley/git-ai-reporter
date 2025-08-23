@@ -42,6 +42,9 @@ DAILY_UPDATES_HEADER = "# Daily Updates"
 DATE_STRING_LENGTH = 10
 DATE_SEPARATOR_COUNT = 2
 
+# Constants for changelog formatting
+UNRELEASED_HEADER_SEPARATOR = "\n\n"
+
 
 @dataclass
 class NewsFileParams:
@@ -52,6 +55,26 @@ class NewsFileParams:
     end_date: datetime
     gemini_client: "GeminiClient | None" = None
     metrics: dict[str, int] | None = None
+    pre_release_version: str | None = None
+
+
+@dataclass
+class NewsEntryParams:
+    """Parameters for creating a new news entry."""
+
+    narrative: str
+    week_header: str
+    start_date: datetime
+    metrics: dict[str, int] | None = None
+    pre_release_version: str | None = None
+
+
+@dataclass
+class ChangelogUpdateParams:
+    """Parameters for updating changelog file."""
+
+    new_entries_md: str
+    pre_release_version: str | None = None
 
 
 class ArtifactWriter:
@@ -169,28 +192,32 @@ class ArtifactWriter:
         """Read existing news file content or return empty string if not found."""
         return await async_read_file_safe(self.news_path) or ""
 
-    async def _create_new_news_entry(
-        self,
-        narrative: str,
-        week_header: str,
-        start_date: datetime,
-        metrics: dict[str, int] | None = None,
-    ) -> str:
-        """Create a new news entry with proper formatting."""
+    async def _create_new_news_entry(self, params: NewsEntryParams) -> str:
+        """Create a new news entry with proper formatting.
+
+        Args:
+            params: Parameters for creating the news entry.
+
+        Returns:
+            Formatted news entry string.
+        """
+        # pre_release_version is used indirectly via week_header formatting
+        _ = params.pre_release_version  # Acknowledge unused parameter
+
         yaml_front = generate_yaml_frontmatter(
             "Project News",
             "Development summaries and project updates",
-            start_date,
+            params.start_date,
             datetime.now(),
         )
 
-        wrapped_narrative = wrap_text_lines(narrative)
+        wrapped_narrative = wrap_text_lines(params.narrative)
 
         metrics_section = ""
-        if metrics and metrics.get("commits_analyzed", 0) > 0:
-            metrics_section = f"\n{generate_summary_metrics_from_dict(metrics)}\n"
+        if params.metrics and params.metrics.get("commits_analyzed", 0) > 0:
+            metrics_section = f"\n{generate_summary_metrics_from_dict(params.metrics)}\n"
 
-        return f"{yaml_front}\n{week_header}\n\n{wrapped_narrative}{metrics_section}\n"
+        return f"{yaml_front}\n{params.week_header}\n\n{wrapped_narrative}{metrics_section}\n"
 
     async def _merge_news_entries(
         self,
@@ -230,13 +257,20 @@ class ArtifactWriter:
 
     async def update_news_file(self, params: NewsFileParams) -> None:
         """Update the weekly narrative in NEWS.md file."""
-        week_header = format_week_header(params.start_date, params.end_date)
+        week_header = format_week_header(
+            params.start_date, params.end_date, params.pre_release_version
+        )
         existing_content = await self._read_or_create_news_file()
 
         if not existing_content.strip():
-            content_block = await self._create_new_news_entry(
-                params.narrative, week_header, params.start_date, params.metrics
+            entry_params = NewsEntryParams(
+                narrative=params.narrative,
+                week_header=week_header,
+                start_date=params.start_date,
+                metrics=params.metrics,
+                pre_release_version=params.pre_release_version,
             )
+            content_block = await self._create_new_news_entry(entry_params)
             await self._insert_content_after_header(self.news_path, content_block, NEWS_HEADER)
             self._console.print(f"Successfully updated {self.news_path}", style="green")
             return
@@ -510,8 +544,73 @@ class ArtifactWriter:
                 return template
             return content
 
-    async def update_changelog_file(self, new_entries_md: str) -> None:
-        """Intelligently merge new entries into the [Unreleased] section of the changelog."""
+    def _create_version_section(
+        self, pre_release_version: str, merged_changes: dict[str, list[str]]
+    ) -> str:
+        """Create a version-specific section for the completed release.
+
+        Args:
+            pre_release_version: Version string for the release.
+            merged_changes: Merged changelog changes.
+
+        Returns:
+            Formatted version section string.
+        """
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        # Ensure version has 'v' prefix but don't double-prefix
+        version = (
+            pre_release_version
+            if pre_release_version.startswith("v")
+            else f"v{pre_release_version}"
+        )
+        updated_entries_str = f"## [{version}] - {current_date}\n\n"
+
+        # Add the actual changes without the "[Unreleased]" header
+        changes_content = rebuild_unreleased_section(merged_changes)
+        # Remove the "## [Unreleased]" header and leading newlines
+        changes_without_header = (
+            changes_content.split(UNRELEASED_HEADER_SEPARATOR, 1)[1]
+            if UNRELEASED_HEADER_SEPARATOR in changes_content
+            else ""
+        )
+        updated_entries_str += changes_without_header
+        # Add a new empty [Unreleased] section for future changes
+        updated_entries_str += "\n\n## [Unreleased]\n\n*No unreleased changes yet.*\n"
+
+        return updated_entries_str
+
+    def _process_changelog_changes(
+        self, params: ChangelogUpdateParams, existing_entries: str
+    ) -> str:
+        """Process and merge changelog changes.
+
+        Args:
+            params: Changelog update parameters.
+            existing_entries: Existing changelog entries.
+
+        Returns:
+            Updated entries string.
+        """
+        new_changes = parse_changelog_section(params.new_entries_md)
+        existing_changes = parse_changelog_section(existing_entries)
+        merged_changes = merge_changelog_changes(new_changes, existing_changes)
+
+        if params.pre_release_version:
+            return self._create_version_section(params.pre_release_version, merged_changes)
+        else:
+            return rebuild_unreleased_section(merged_changes)
+
+    async def update_changelog_file(
+        self, new_entries_md: str, pre_release_version: str | None = None
+    ) -> None:
+        """Intelligently merge new entries into the [Unreleased] section of the changelog.
+
+        Args:
+            new_entries_md: New changelog entries in markdown format.
+            pre_release_version: If provided, formats for upcoming release (e.g., "1.2.3").
+        """
+        params = ChangelogUpdateParams(new_entries_md, pre_release_version)
+
         content = await self._ensure_changelog_exists()
 
         if not (section_parts := find_unreleased_section(content)):
@@ -522,12 +621,7 @@ class ArtifactWriter:
             return
 
         prefix, existing_entries, suffix = section_parts
-
-        new_changes = parse_changelog_section(new_entries_md)
-        existing_changes = parse_changelog_section(existing_entries)
-
-        merged_changes = merge_changelog_changes(new_changes, existing_changes)
-        updated_entries_str = rebuild_unreleased_section(merged_changes)
+        updated_entries_str = self._process_changelog_changes(params, existing_entries)
 
         original_match = f"{prefix}{existing_entries}{suffix}"
         final_content = reconstruct_changelog(

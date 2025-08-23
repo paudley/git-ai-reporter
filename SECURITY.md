@@ -59,6 +59,71 @@ uv pip list --outdated
 uv pip install --upgrade -e .[dev]
 ```
 
+## Package Attestations & Supply Chain Security
+
+Git AI Reporter implements state-of-the-art supply chain security through PyPI's digital attestations system:
+
+### What Are Package Attestations?
+
+Package attestations provide cryptographic proof that:
+- ✅ The package was built directly from this GitHub repository
+- ✅ The package has not been tampered with since publication
+- ✅ The exact source code and commit hash that produced the package
+- ✅ The build environment and workflow used for creation
+
+### How to Verify Package Attestations
+
+**Method 1: PyPI Web Interface**
+1. Visit https://pypi.org/project/git-ai-reporter/
+2. Click on the version you want to verify
+3. Look for 🛡️ attestation badges next to download files
+4. Click on the files to view detailed attestation information
+5. Verify the source repository matches `https://github.com/paudley/git-ai-reporter`
+
+**Method 2: PyPI Integrity API**
+```bash
+# Check for attestations using curl
+curl "https://pypi.org/simple/git-ai-reporter/" | grep "data-provenance-attestation"
+
+# Verify attestations programmatically
+pip install pypi-attestations
+python -m pypi_attestations verify git-ai-reporter==0.1.0
+```
+
+**Method 3: Sigstore Verification**
+```bash
+# Install sigstore tools
+pip install sigstore
+
+# Verify package provenance (when available)
+python -m sigstore verify --certificate <cert-file> --signature <sig-file> <package-file>
+```
+
+### Attestation Security Benefits
+
+- **Provenance Tracking**: Verify packages come from this exact repository
+- **Tamper Detection**: Detect any modifications to packages post-publication
+- **Supply Chain Integrity**: End-to-end verification from source to installation
+- **Automated Security**: No manual verification steps required for basic protection
+- **Transparency**: Public ledger of all build and publish activities
+
+### What's Attested
+
+For each package release, attestations provide proof of:
+1. **Source Repository**: `https://github.com/paudley/git-ai-reporter`
+2. **Exact Commit Hash**: SHA that was used to build the package
+3. **Build Environment**: GitHub Actions runner and workflow details
+4. **Build Timestamp**: When the package was built and published
+5. **Workflow Details**: Exact GitHub Actions workflow that performed the build
+
+### Trusted Publishing
+
+Git AI Reporter uses PyPI's Trusted Publishing mechanism:
+- 🔐 **No Long-Lived API Tokens**: Uses OpenID Connect for secure authentication
+- 🤖 **Automated Publishing**: Direct from GitHub Actions with no manual intervention
+- 🔍 **Audit Trail**: Complete logging of all publishing activities
+- 🛡️ **Environment Protection**: Manual approval required for production releases
+
 ## Security Features
 
 Git AI Reporter includes several security features:
@@ -68,6 +133,8 @@ Git AI Reporter includes several security features:
 - **Secure Defaults**: Security-conscious default configurations
 - **Error Handling**: Errors don't expose sensitive information
 - **Token Limits**: Automatic prompt truncation prevents token overflow attacks
+- **Supply Chain Security**: Digital attestations verify package provenance
+- **Secure Publishing**: Trusted Publishing eliminates long-lived API tokens
 
 ## Vulnerability Disclosure Policy
 

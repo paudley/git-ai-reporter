@@ -383,8 +383,8 @@ class TestOrchestratorCoverage:
         orchestrator = AnalysisOrchestrator(services=services, config=config)
 
         result = AnalysisResult(
-            period_summaries=["Summary"],
-            daily_summaries=["Daily"],
+            period_summaries=[],
+            daily_summaries=[],
             changelog_entries=[],
         )
         commits = [MagicMock()]

@@ -63,6 +63,7 @@ class AppConfigParams(BaseModel):
     cache_dir: str
     no_cache: bool = False
     debug: bool = False
+    pre_release: str | None = None
 
 
 class MainFunctionParams(BaseModel):
@@ -314,7 +315,7 @@ def _run_analysis(
                 time_params.weeks, time_params.start_date_str, time_params.end_date_str
             )
 
-        asyncio.run(orchestrator.run(start_date, end_date))
+        asyncio.run(orchestrator.run(start_date, end_date, app_config.pre_release))
     except GeminiClientError as e:
         CONSOLE.print(f"\n[bold red]A fatal error occurred during analysis:[/bold red]\n{e}")
         raise typer.Exit(code=1) from e
@@ -348,6 +349,11 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         "--debug",
         help="Enable debug mode with verbose logging and no progress bars.",
     ),
+    pre_release: str | None = typer.Option(
+        None,
+        "--pre-release",
+        help="Generate release documentation for the specified version. Formats content as if the release has already happened (e.g., '1.2.3').",
+    ),
 ) -> None:
     """Generates AI-powered development summaries for a Git repository.
 
@@ -358,14 +364,15 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     Args:
         repo_path: The file path to the local Git repository.
         weeks: The number of past weeks to analyze. This is overridden by
-               --start-date.
-        start_date_str: The start date for the analysis range (YYYY-MM-DD).
-        end_date_str: The end date for the analysis range (YYYY-MM-DD).
-        config_file: Optional path to a TOML configuration file to override
-                     default and environment variable settings.
-        cache_dir: The directory to store cache files.
-        no_cache: If True, ignore existing cache and re-analyze.
-        debug: If True, enable verbose logging and disable progress bars.
+            start_date if provided.
+        start_date_str: Start date in YYYY-MM-DD format. Overrides weeks parameter.
+        end_date_str: End date in YYYY-MM-DD format. Defaults to current date.
+        config_file: Path to a TOML configuration file for settings.
+        cache_dir: Directory path for storing cache files.
+        no_cache: If True, ignore existing cache and re-analyze everything.
+        debug: Enable verbose logging and disable progress bars.
+        pre_release: Version string for pre-release documentation generation.
+            Formats content as if the release has already happened.
     """
     repo_params = RepositoryParams(repo_path=repo_path)
     time_params = TimeRangeParams(
@@ -378,6 +385,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         cache_dir=cache_dir,
         no_cache=no_cache,
         debug=debug,
+        pre_release=pre_release,
     )
 
     _run_analysis(repo_params, time_params, app_config)

@@ -71,6 +71,7 @@ class WritingTaskParams(BaseModel):
     result: AnalysisResult
     start_date: datetime
     end_date: datetime
+    pre_release_version: str | None = None
 
 
 class DailySummaryTaskParams(BaseModel):
@@ -94,6 +95,7 @@ class ArtifactGenerationParams(BaseModel):
     start_date: datetime
     end_date: datetime
     all_commits: list[Commit]
+    pre_release_version: str | None = None
 
 
 class AnalysisOrchestrator:
@@ -114,12 +116,15 @@ class AnalysisOrchestrator:
         self.services = services
         self.config = config
 
-    async def run(self, start_date: datetime, end_date: datetime) -> None:
+    async def run(
+        self, start_date: datetime, end_date: datetime, pre_release_version: str | None = None
+    ) -> None:
         """Executes the full analysis and report generation workflow.
 
         Args:
             start_date: The start date for the analysis range.
             end_date: The end date for the analysis range.
+            pre_release_version: Optional version string for pre-release documentation.
 
         Raises:
             typer.Exit: If no commits are found in the specified range.
@@ -149,6 +154,7 @@ class AnalysisOrchestrator:
                 start_date=start_date,
                 end_date=end_date,
                 all_commits=all_commits,
+                pre_release_version=pre_release_version,
             )
             stats = await self._generate_and_write_artifacts(params, None)
         else:
@@ -172,6 +178,7 @@ class AnalysisOrchestrator:
                     start_date=start_date,
                     end_date=end_date,
                     all_commits=all_commits,
+                    pre_release_version=pre_release_version,
                 )
                 stats = await self._generate_and_write_artifacts(params, progress)
 
@@ -669,11 +676,15 @@ class AnalysisOrchestrator:
             self.services.console.print("Loaded final narrative from cache.")
             return cached_narrative
 
-        if not (
-            period_diff := await asyncio.to_thread(
-                self.services.git_analyzer.get_weekly_diff, all_commits
-            )
-        ):
+        # Get weekly diff, but allow empty/None diff - we can still generate narrative from commit summaries
+        period_diff = await asyncio.to_thread(
+            self.services.git_analyzer.get_weekly_diff, all_commits
+        )
+
+        # If we have no commit summaries and no diff, there's nothing to generate narrative from
+        if not result.changelog_entries and not result.daily_summaries and not period_diff:
+            if self.config.debug:
+                self.services.console.print("No content available for narrative generation")
             return None
 
         history = (
@@ -691,7 +702,7 @@ class AnalysisOrchestrator:
         narrative = await self.services.gemini_client.generate_news_narrative(
             commit_summaries=detailed_commits_text,
             daily_summaries=daily_summaries_text,
-            weekly_diff=period_diff,
+            weekly_diff=period_diff or "",  # Handle None/empty diff gracefully
             history=history,
         )
         if narrative:
@@ -767,6 +778,7 @@ class AnalysisOrchestrator:
                 start_date=params.start_date,
                 end_date=params.end_date,
                 gemini_client=self.services.gemini_client,
+                pre_release_version=params.pre_release_version,
             )
             writing_tasks.append(self.services.artifact_writer.update_news_file(news_params))
         if params.result.daily_summaries:
@@ -785,7 +797,9 @@ class AnalysisOrchestrator:
                     f"  Writing file: {self.services.artifact_writer.changelog_path.name}"
                 )
             writing_tasks.append(
-                self.services.artifact_writer.update_changelog_file(params.final_changelog)
+                self.services.artifact_writer.update_changelog_file(
+                    params.final_changelog, params.pre_release_version
+                )
             )
         return writing_tasks
 
@@ -897,6 +911,7 @@ class AnalysisOrchestrator:
             result=params.result,
             start_date=params.start_date,
             end_date=params.end_date,
+            pre_release_version=params.pre_release_version,
         )
         if writing_tasks := self._prepare_writing_tasks(writing_params):
             await self._execute_writing_tasks(writing_tasks, progress, writing_task_id)

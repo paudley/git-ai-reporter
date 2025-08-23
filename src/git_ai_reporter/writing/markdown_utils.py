@@ -43,20 +43,34 @@ format: markdown
 """
 
 
-def format_week_header(start_date: datetime, end_date: datetime) -> str:
+def format_week_header(
+    start_date: datetime, end_date: datetime, pre_release_version: str | None = None
+) -> str:
     """Format week header with week number.
 
     Args:
         start_date: Week start date.
         end_date: Week end date.
+        pre_release_version: If provided, formats for upcoming release (e.g., "1.2.3").
 
     Returns:
         Formatted week header.
     """
     week_num = start_date.isocalendar()[1]  # ISO week number
-    return (
-        f"## Week {week_num}: {start_date.strftime('%B %d')} - " f"{end_date.strftime('%B %d, %Y')}"
+    base_header = (
+        f"Week {week_num}: {start_date.strftime('%B %d')} - {end_date.strftime('%B %d, %Y')}"
     )
+
+    if pre_release_version:
+        # Ensure version has 'v' prefix but don't double-prefix
+        version = (
+            pre_release_version
+            if pre_release_version.startswith("v")
+            else f"v{pre_release_version}"
+        )
+        return f"## {base_header} - Released {version} 🚀"
+    else:
+        return f"## {base_header}"
 
 
 def wrap_markdown_text(text: str, max_length: int = MAX_LINE_LENGTH) -> str:

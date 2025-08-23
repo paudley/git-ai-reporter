@@ -7,6 +7,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue)](https://mypy-lang.org/)
 [![Test Coverage: Core](https://img.shields.io/badge/coverage-core%20functionality-brightgreen.svg)](https://pytest.org)
+[![Supply Chain Security](https://img.shields.io/badge/supply%20chain-secured-brightgreen.svg)](https://docs.pypi.org/attestations/)
 [![PyPI version](https://badge.fury.io/py/git-ai-reporter.svg)](https://pypi.org/project/git-ai-reporter/)
 [![CI Status](https://github.com/paudley/git-ai-reporter/workflows/CI/badge.svg)](https://github.com/paudley/git-ai-reporter/actions)
 [![codecov](https://codecov.io/gh/paudley/git-ai-reporter/branch/main/graph/badge.svg)](https://codecov.io/gh/paudley/git-ai-reporter)
@@ -51,6 +52,14 @@ Instead of manually crafting release notes or dumping raw git logs, Git AI Repor
 - **Type-Safe**: 100% type annotated with strict mypy checking
 - **Test Coverage**: Comprehensive test coverage with deterministic testing
 
+### 🔒 Supply Chain Security
+
+- **Digital Attestations**: All PyPI packages include cryptographic proof of origin
+- **Trusted Publishing**: Secure, tokenless publishing directly from GitHub Actions
+- **Package Verification**: Users can verify package authenticity using PyPI's attestation system
+- **Source Transparency**: Complete audit trail from source code to published package
+- **Tamper Detection**: Cryptographic protection against package modification
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -70,6 +79,8 @@ pip install git-ai-reporter
 # Or using uv
 uv pip install git-ai-reporter
 ```
+
+> **🔒 Security Note**: All PyPI packages include digital attestations for supply chain security. You can verify package authenticity by checking for attestation badges on the [PyPI project page](https://pypi.org/project/git-ai-reporter/) or refer to our [Security Documentation](SECURITY.md#package-attestations--supply-chain-security) for verification instructions.
 
 #### From Source
 
