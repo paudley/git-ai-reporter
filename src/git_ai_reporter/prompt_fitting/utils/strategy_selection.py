@@ -8,7 +8,7 @@ into focused, testable helper functions.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 from ..constants import ADAPTIVE_BOOST
 from ..constants import CACHING_BOOST
@@ -39,10 +39,8 @@ from ..constants import STRATEGY_NAME_PARALLEL
 from ..constants import STRATEGY_NAME_SEMANTIC
 from ..constants import StrategyConfidence
 
-if TYPE_CHECKING:
-    from ..analysis import ContentComplexity
-    from ..factory import OptimizationTarget
-    from ..factory import SelectionCriteria
+# TYPE_CHECKING imports removed to prevent cyclic imports
+# All type annotations use Union[str, object] instead of specific enums
 
 
 @dataclass

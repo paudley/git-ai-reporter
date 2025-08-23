@@ -112,12 +112,12 @@ class TestJsonHelperProperties:
                 lambda x: BACKTICKS not in x and x.strip() != ""
             ),  # Avoid backticks, empty strings, and whitespace-only strings in keys
             st.one_of(
-                st.text().filter(lambda x: BACKTICKS not in x),  # Avoid backticks in values
+                st.text(),
                 st.integers(),
                 st.floats(allow_nan=False, allow_infinity=False),
                 st.booleans(),
                 st.none(),
-            ),
+            ).filter(lambda x: x is None or not isinstance(x, str) or BACKTICKS not in x),
         )
     )
     def test_json_roundtrip_preserves_structure(self, data: dict[str, Any]) -> None:

@@ -1,0 +1,15 @@
+[bandit]
+# Exclude test directories and files
+exclude_dirs = tests,test_*,**/test_*,**/tests/**,**/conftest.py
+
+# Skip specific test IDs that are inappropriate for production security scans
+skips = B101  # assert_used - asserts are appropriate in test files
+
+# Scan only source code directories
+targets = src
+
+# Configure confidence levels
+confidence = HIGH
+
+# Configure severity levels  
+severity = MEDIUM

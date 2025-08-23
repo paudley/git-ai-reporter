@@ -838,8 +838,9 @@ class AnalysisOrchestrator:
     ) -> None:
         """Execute writing tasks and update progress."""
         if self.config.debug:
+            # Execute tasks sequentially in debug mode for better error tracking
             for task in writing_tasks:
-                await task
+                await task  # Each task has side effects (writes files)
         else:
             await asyncio.gather(*writing_tasks)
 

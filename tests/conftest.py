@@ -8,10 +8,13 @@ This file contains fixtures and configuration that are available to all tests.
 
 from collections.abc import Iterator
 import json
+import logging
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
+import time
 from typing import Any, Final
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
@@ -26,6 +29,79 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # Constants
 WINDOWS_OS_NAME: Final[str] = "nt"
 
+
+def _make_writable(path: Path) -> None:
+    """Make path writable, ignoring errors."""
+    try:
+        os.chmod(path, 0o777)
+    except OSError:
+        pass  # Ignore all OS-related errors
+
+
+def _prepare_windows_cleanup(temp_path: Path) -> None:
+    """Prepare directory for cleanup on Windows."""
+    if os.name != WINDOWS_OS_NAME:
+        return
+
+    time.sleep(0.1)  # Brief pause to let processes release locks
+
+    # Make all files and directories writable
+    for root, dirs, files in os.walk(temp_path):
+        for d in dirs:
+            _make_writable(Path(root) / d)
+        for f in files:
+            _make_writable(Path(root) / f)
+
+
+def _handle_cleanup_failure(temp_path: Path, error: OSError, is_final_attempt: bool) -> None:
+    """Handle cleanup failure based on platform and attempt."""
+    if not is_final_attempt:
+        return  # Will retry
+
+    if os.name == WINDOWS_OS_NAME:
+        # On Windows, log warning but don't raise - CI constraint
+        logging.warning("Could not clean up %s: %s", temp_path, error)
+        return
+
+    # On Unix systems, re-raise the error
+    raise error
+
+
+def _safe_cleanup_on_windows(temp_path: Path, max_retries: int = 3) -> None:
+    """Safely clean up temporary directory on Windows with retry logic.
+
+    Windows can hold locks on Git files longer than Unix systems,
+    preventing immediate cleanup. This function implements retry logic
+    to handle these cases gracefully.
+
+    Args:
+        temp_path: Path to temporary directory to clean up
+        max_retries: Maximum number of cleanup attempts
+    """
+    if not temp_path.exists():
+        return
+
+    # Force close any Git repositories that might be holding locks
+    if hasattr(git.Repo, "_clear_caches"):
+        git.Repo._clear_caches()  # type: ignore[attr-defined]
+
+    for attempt in range(max_retries):
+        try:
+            _prepare_windows_cleanup(temp_path)
+
+            # Try to remove the directory
+            shutil.rmtree(temp_path, ignore_errors=attempt < max_retries - 1)
+            return  # Success!
+
+        except OSError as error:
+            is_final_attempt = attempt == max_retries - 1
+            _handle_cleanup_failure(temp_path, error, is_final_attempt)
+
+            if not is_final_attempt:
+                # Wait longer between retries
+                time.sleep(0.2 * (attempt + 1))
+
+
 # pylint: disable=wrong-import-position
 from git_ai_reporter.models import AnalysisResult  # noqa: E402
 from git_ai_reporter.models import Change  # noqa: E402
@@ -36,21 +112,28 @@ from git_ai_reporter.models import CommitAnalysis  # noqa: E402
 def temp_dir() -> Iterator[Path]:
     """Create a temporary directory for test files.
 
+    Uses Windows-safe cleanup to handle Git file locking issues.
+
     Yields:
         Path: Path to the temporary directory.
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+    # Create temp directory manually to control cleanup
+    temp_path = Path(tempfile.mkdtemp())
+    try:
+        yield temp_path
+    finally:
+        # Use our Windows-safe cleanup
+        _safe_cleanup_on_windows(temp_path)
 
 
 @pytest.fixture
-def temp_git_repo(temp_dir: Path) -> git.Repo:  # pylint: disable=redefined-outer-name
+def temp_git_repo(temp_dir: Path) -> Iterator[git.Repo]:  # pylint: disable=redefined-outer-name
     """Create a temporary git repository for testing.
 
     Args:
         temp_dir: Temporary directory to create repo in.
 
-    Returns:
+    Yields:
         git.Repo: Initialized git repository.
     """
     # Resolve to absolute path to avoid path issues in CI
@@ -64,8 +147,17 @@ def temp_git_repo(temp_dir: Path) -> git.Repo:  # pylint: disable=redefined-oute
         absolute_temp_dir = Path(normalized_path)
 
     repo = git.Repo.init(absolute_temp_dir)
-    repo.config_writer().set_value("user", "name", "Test User").release()
-    repo.config_writer().set_value("user", "email", "test@example.com").release()
+
+    # Configure git with Windows-compatible settings
+    config_writer = repo.config_writer()
+    try:
+        config_writer.set_value("user", "name", "Test User")
+        config_writer.set_value("user", "email", "test@example.com")
+        # On Windows, set core.longpaths to handle long path issues
+        if os.name == WINDOWS_OS_NAME:
+            config_writer.set_value("core", "longpaths", "true")
+    finally:
+        config_writer.release()
 
     # Create initial commit with proper path handling
     readme = absolute_temp_dir / "README.md"
@@ -75,7 +167,14 @@ def temp_git_repo(temp_dir: Path) -> git.Repo:  # pylint: disable=redefined-oute
     repo.index.add(["README.md"])
     repo.index.commit("Initial commit")
 
-    return repo
+    try:
+        yield repo
+    finally:
+        # Explicitly close the repo to release file locks on Windows
+        try:
+            repo.close()
+        except (OSError, AttributeError):
+            pass  # Ignore cleanup errors - repo may not support close() or file locks
 
 
 @pytest.fixture

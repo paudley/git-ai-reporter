@@ -42,7 +42,7 @@ scenarios("../features/git_analysis.feature")
 def git_analyzer(temp_git_repo: git.Repo) -> MagicMock:
     """Create a mock GitAnalyzer instance for testing."""
     analyzer = MagicMock()
-    analyzer.repo_path = Path(temp_git_repo.working_dir)
+    analyzer.repo_path = Path(temp_git_repo.working_dir) if temp_git_repo.working_dir else None
     analyzer.since_date = datetime(2025, 1, 1)
     analyzer.until_date = datetime(2025, 1, 8)
     return analyzer

@@ -73,7 +73,6 @@ class _GeminiTokenCounter:
 _CHANGELOG_HEADINGS_FOR_PROMPT: Final[str] = ", ".join(
     f"'### {emoji} {name}'" for name, emoji in COMMIT_CATEGORIES.items()
 )
-_TRIVIAL_RESPONSE_STR: Final[str] = "true"
 
 _PROMPT_TEMPLATE_CHANGELOG: Final[
     str
