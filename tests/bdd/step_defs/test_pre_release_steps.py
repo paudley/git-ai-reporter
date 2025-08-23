@@ -155,7 +155,9 @@ def temp_repo_with_files(
         # Create a file for this commit
         file_path = repo_path / f"src/feature_{i:03d}.py"
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(f"# {commit_data['message']}\nprint('Implementation {i}')")
+        file_path.write_text(
+            f"# {commit_data['message']}\nprint('Implementation {i}')", encoding="utf-8"
+        )
 
         repo.index.add([f"src/feature_{i:03d}.py"])
         repo.index.commit(commit_data["message"])
@@ -225,9 +227,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     changelog_path = temp_dir / "CHANGELOG.txt"
     daily_path = temp_dir / "DAILY_UPDATES.md"
 
-    news_path.write_text(news_content)
-    changelog_path.write_text(changelog_content)
-    daily_path.write_text("# Daily Updates\n\n")
+    news_path.write_text(news_content, encoding="utf-8")
+    changelog_path.write_text(changelog_content, encoding="utf-8")
+    daily_path.write_text("# Daily Updates\n\n", encoding="utf-8")
 
     # Add and commit files to the existing rich repo
     repo.index.add([str(news_path), str(changelog_path), str(daily_path)])
@@ -274,7 +276,7 @@ def given_existing_news_file(pre_release_context: dict[str, Any]) -> None:
     news_path = pre_release_context["news_path"]
     check.is_true(news_path.exists(), "NEWS.md should exist")
 
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
     pre_release_context["initial_news_content"] = content
     check.is_in("# Project News", content)
 
@@ -285,7 +287,7 @@ def given_existing_changelog_file(pre_release_context: dict[str, Any]) -> None:
     changelog_path = pre_release_context["changelog_path"]
     check.is_true(changelog_path.exists(), "CHANGELOG.txt should exist")
 
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
     pre_release_context["initial_changelog_content"] = content
     check.is_in("## [Unreleased]", content)
 
@@ -339,7 +341,7 @@ def given_empty_unreleased_section(pre_release_context: dict[str, Any]) -> None:
     """Set up CHANGELOG with empty unreleased section."""
     # Update the changelog to have empty unreleased section
     changelog_path = pre_release_context["changelog_path"]
-    existing_content = changelog_path.read_text()
+    existing_content = changelog_path.read_text(encoding="utf-8")
 
     # Use the text from the multiline string (extract from step_text)
     content = """## [Unreleased]
@@ -354,7 +356,7 @@ def given_empty_unreleased_section(pre_release_context: dict[str, Any]) -> None:
         flags=re.DOTALL,
     )
 
-    changelog_path.write_text(updated_content)
+    changelog_path.write_text(updated_content, encoding="utf-8")
 
 
 @given("CHANGELOG.txt contains previous versions:")
@@ -372,7 +374,7 @@ def given_existing_versions(datatable, pre_release_context: dict[str, Any]) -> N
     pre_release_context["existing_versions"] = versions
 
     # Verify these exist in the changelog
-    changelog_content = pre_release_context["changelog_path"].read_text()
+    changelog_content = pre_release_context["changelog_path"].read_text(encoding="utf-8")
     for version_info in versions:
         check.is_in(f"[{version_info['version']}]", changelog_content)
 
@@ -380,7 +382,7 @@ def given_existing_versions(datatable, pre_release_context: dict[str, Any]) -> N
 @given("I have new unreleased changes")
 def given_new_unreleased_changes(pre_release_context: dict[str, Any]) -> None:
     """Verify that unreleased changes exist (already set up in fixture)."""
-    changelog_content = pre_release_context["changelog_path"].read_text()
+    changelog_content = pre_release_context["changelog_path"].read_text(encoding="utf-8")
     check.is_in("## [Unreleased]", changelog_content)
     check.is_in(CHANGELOG_ADDED_HEADER, changelog_content)
 
@@ -409,7 +411,9 @@ def given_date_range(start_date: str, end_date: str, pre_release_context: dict[s
         # Create a file for this commit
         file_path = temp_dir / f"src/daterange_feature_{i:03d}.py"
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(f"# {message}\nprint('Date range implementation {i}')")
+        file_path.write_text(
+            f"# {message}\nprint('Date range implementation {i}')", encoding="utf-8"
+        )
 
         repo.index.add([f"src/daterange_feature_{i:03d}.py"])
 
@@ -445,7 +449,7 @@ def given_activity_metrics(datatable, pre_release_context: dict[str, Any]) -> No
 def given_existing_version_section(version: str, pre_release_context: dict[str, Any]) -> None:
     """Add an existing version section to test conflict handling."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Add the conflicting section
     conflict_section = f"""
@@ -461,7 +465,7 @@ def given_existing_version_section(version: str, pre_release_context: dict[str, 
         "## [1.1.0] - 2025-01-15", conflict_section + "## [1.1.0] - 2025-01-15"
     )
 
-    changelog_path.write_text(updated_content)
+    changelog_path.write_text(updated_content, encoding="utf-8")
 
 
 @given("I have meaningful commits with descriptive messages")
@@ -485,7 +489,7 @@ def given_existing_cache(pre_release_context: dict[str, Any]) -> None:
 
     # Create mock cache files
     cache_file = cache_dir / "commit_analysis.json"
-    cache_file.write_text('{"cached": "analysis_results"}')
+    cache_file.write_text('{"cached": "analysis_results"}', encoding="utf-8")
 
     pre_release_context["cache_exists"] = True
 
@@ -582,7 +586,7 @@ def when_run_pre_release_with_dates(
 def then_news_contains_header_text(text: str, pre_release_context: dict[str, Any]) -> None:
     """Verify NEWS.md contains specific text in header."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Find the first actual week header (not Table of Contents)
     lines = content.split("\n")
@@ -600,7 +604,7 @@ def then_news_contains_header_text(text: str, pre_release_context: dict[str, Any
 def then_changelog_has_section(section: str, pre_release_context: dict[str, Any]) -> None:
     """Verify CHANGELOG.txt has the specified section."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     expected_section = section.replace('"', "")  # Remove quotes
     check.is_in(expected_section, content, f"Should contain section {expected_section}")
@@ -610,7 +614,7 @@ def then_changelog_has_section(section: str, pre_release_context: dict[str, Any]
 def then_version_section_has_changes(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify the version section contains the unreleased changes."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Check that the version section exists and has content
     version_pattern = re.compile(f"## \\[{version}\\].*?(?=## \\[|$)", re.DOTALL)
@@ -641,7 +645,7 @@ def then_version_section_has_changes(version: str, pre_release_context: dict[str
 def then_new_unreleased_section(pre_release_context: dict[str, Any]) -> None:
     """Verify a new empty [Unreleased] section was created."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have an [Unreleased] section
     check.is_in("## [Unreleased]", content)
@@ -666,7 +670,7 @@ def then_new_unreleased_section(pre_release_context: dict[str, Any]) -> None:
 def then_release_date_today(pre_release_context: dict[str, Any]) -> None:
     """Verify the release date is today."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     today = datetime.now().strftime("%Y-%m-%d")
     check.is_in(today, content, f"Should contain today's date {today}")
@@ -676,7 +680,7 @@ def then_release_date_today(pre_release_context: dict[str, Any]) -> None:
 def then_news_reflects_completed_release(pre_release_context: dict[str, Any]) -> None:
     """Verify NEWS.md shows release as completed."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should contain "Released" indicating past tense
     check.is_in("Released", content, "Should indicate release is completed")
@@ -686,7 +690,7 @@ def then_news_reflects_completed_release(pre_release_context: dict[str, Any]) ->
 def then_week_header_shows_release(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify week header shows the release."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     expected_text = f"Released v{version} 🚀"
     check.is_in(expected_text, content, f"Should contain '{expected_text}'")
@@ -696,7 +700,7 @@ def then_week_header_shows_release(version: str, pre_release_context: dict[str, 
 def then_changelog_moves_to_version(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify changes moved to version section."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have the version section
     version_section = f"[{version}]"
@@ -716,7 +720,7 @@ def then_changelog_moves_to_version(version: str, pre_release_context: dict[str,
 def then_four_categories_organized(pre_release_context: dict[str, Any]) -> None:
     """Verify all four categories are present."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     categories = ["### ✨ New Feature", "### 🐛 Bug Fix", "### ♻️ Refactoring", "### 🔒 Security"]
     for category in categories:
@@ -727,7 +731,7 @@ def then_four_categories_organized(pre_release_context: dict[str, Any]) -> None:
 def then_version_date_today(pre_release_context: dict[str, Any]) -> None:
     """Verify version section has today's date."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     today = datetime.now().strftime("%Y-%m-%d")
     check.is_in(f"- {today}", content, f"Should contain today's date {today}")
@@ -740,7 +744,7 @@ def then_version_date_today(pre_release_context: dict[str, Any]) -> None:
 def then_minimal_version_section(pre_release_context: dict[str, Any]) -> None:
     """Verify minimal version section creation."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
     check.is_in("[v1.0.1]", content, "Should have v1.0.1 section")
 
 
@@ -750,7 +754,7 @@ def then_patch_level_changes(pre_release_context: dict[str, Any]) -> None:
     # This is a semantic check - would need AI analysis to verify
     # Implementation depends on AI analysis
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
     # Check that content exists for the patch version
     check.is_true(len(content) > 0, "Should have changelog content")
 
@@ -759,7 +763,7 @@ def then_patch_level_changes(pre_release_context: dict[str, Any]) -> None:
 def then_maintenance_release(pre_release_context: dict[str, Any]) -> None:
     """Verify maintenance release indication."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
     # Check for maintenance-related terms
     maintenance_terms = ["maintenance", "patch", "bug fix", "stability"]
     has_maintenance = any(term in content.lower() for term in maintenance_terms)
@@ -770,7 +774,7 @@ def then_maintenance_release(pre_release_context: dict[str, Any]) -> None:
 def then_proper_unreleased_format(pre_release_context: dict[str, Any]) -> None:
     """Verify proper formatting of new [Unreleased] section."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Check format
     check.is_in(UNRELEASED_HEADER, content)
@@ -787,7 +791,7 @@ def then_proper_unreleased_format(pre_release_context: dict[str, Any]) -> None:
 def then_new_version_at_top(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify new version section is at the top."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Find first version section after [Unreleased]
     lines = content.split("\n")
@@ -807,7 +811,7 @@ def then_new_version_at_top(version: str, pre_release_context: dict[str, Any]) -
 def then_existing_versions_unchanged(pre_release_context: dict[str, Any]) -> None:
     """Verify existing versions are preserved."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Check for preserved versions from fixture
     check.is_in("[1.1.0]", content, "Should preserve v1.1.0")
@@ -820,7 +824,7 @@ def then_existing_versions_unchanged(pre_release_context: dict[str, Any]) -> Non
 def then_version_ordering_correct(pre_release_context: dict[str, Any]) -> None:
     """Verify version ordering is chronologically correct."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have versions in reverse chronological order (newest first)
     check.is_in("## [Unreleased]", content)
@@ -845,7 +849,7 @@ def then_commits_in_range_analyzed(pre_release_context: dict[str, Any]) -> None:
 def then_documentation_reflects_period(pre_release_context: dict[str, Any]) -> None:
     """Verify documentation reflects the specified time period."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have some date-related content
     check.is_true(len(content) > MIN_SECTION_LENGTH, "Should have meaningful content")
@@ -855,7 +859,7 @@ def then_documentation_reflects_period(pre_release_context: dict[str, Any]) -> N
 def then_news_shows_week_range(pre_release_context: dict[str, Any]) -> None:
     """Verify NEWS.md shows correct week range."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have a week header
     check.is_in("Week", content, "Should have week header")
@@ -865,7 +869,7 @@ def then_news_shows_week_range(pre_release_context: dict[str, Any]) -> None:
 def then_changelog_relevant_changes(pre_release_context: dict[str, Any]) -> None:
     """Verify CHANGELOG contains only relevant changes."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have changelog structure
     check.is_in("## [", content, "Should have version sections")
@@ -882,7 +886,7 @@ def then_news_valid_markdown(pre_release_context: dict[str, Any]) -> None:
 def then_yaml_frontmatter_correct(pre_release_context: dict[str, Any]) -> None:
     """Verify YAML frontmatter formatting."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     frontmatter, _ = extract_yaml_frontmatter(content)
     check.is_instance(frontmatter, dict, "Should have valid YAML frontmatter")
@@ -900,7 +904,7 @@ def then_changelog_follows_standards(pre_release_context: dict[str, Any]) -> Non
 def then_version_headers_correct_format(pre_release_context: dict[str, Any]) -> None:
     """Verify version headers use correct format."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have proper version format [vX.Y.Z]
 
@@ -913,7 +917,7 @@ def then_version_headers_correct_format(pre_release_context: dict[str, Any]) -> 
 def then_dates_iso_format(pre_release_context: dict[str, Any]) -> None:
     """Verify dates are in ISO format."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should contain ISO-formatted dates
 
@@ -926,7 +930,7 @@ def then_dates_iso_format(pre_release_context: dict[str, Any]) -> None:
 def then_emoji_indicators_present(pre_release_context: dict[str, Any]) -> None:
     """Verify emoji indicators are present."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have rocket emoji for releases
     check.is_in("🚀", content, "Should have release emoji")
@@ -936,7 +940,7 @@ def then_emoji_indicators_present(pre_release_context: dict[str, Any]) -> None:
 def then_news_includes_metrics(pre_release_context: dict[str, Any]) -> None:
     """Verify NEWS.md includes metrics."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have some numerical data or metrics-like content
 
@@ -956,7 +960,7 @@ def then_metrics_reflect_activity(pre_release_context: dict[str, Any]) -> None:
 def then_narrative_mentions_scope(pre_release_context: dict[str, Any]) -> None:
     """Verify narrative mentions scope."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have content about changes
     scope_terms = ["changes", "improvements", "updates", "features", "fixes"]
@@ -968,7 +972,7 @@ def then_narrative_mentions_scope(pre_release_context: dict[str, Any]) -> None:
 def then_daily_updates_detailed(pre_release_context: dict[str, Any]) -> None:
     """Verify DAILY_UPDATES.md has daily breakdowns."""
     daily_path = pre_release_context["daily_path"]
-    content = daily_path.read_text()
+    content = daily_path.read_text(encoding="utf-8")
 
     # Should have some daily content
     check.is_true(len(content) > MIN_DAILY_CONTENT_LENGTH, "Should have daily content")
@@ -1018,7 +1022,7 @@ def then_tool_handles_conflict_gracefully(pre_release_context: dict[str, Any]) -
 def then_existing_section_preserved(pre_release_context: dict[str, Any]) -> None:
     """Verify existing sections are preserved."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have the conflicting version
     check.is_in("[v1.3.0]", content, "Should preserve existing version")
@@ -1028,7 +1032,7 @@ def then_existing_section_preserved(pre_release_context: dict[str, Any]) -> None
 def then_no_data_loss(pre_release_context: dict[str, Any]) -> None:
     """Verify no data loss occurred."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     # Should have all existing content
     check.is_true(len(content) > MIN_SECTION_LENGTH, "Should preserve existing content")
@@ -1045,7 +1049,7 @@ def then_warnings_displayed(pre_release_context: dict[str, Any]) -> None:
 def then_version_formatted_as(expected_format: str, pre_release_context: dict[str, Any]) -> None:
     """Verify version is formatted correctly."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     _verify_version_format(content, expected_format, expected_format)
 
@@ -1054,7 +1058,7 @@ def then_version_formatted_as(expected_format: str, pre_release_context: dict[st
 def then_release_header_shows(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify release header shows correct format."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     expected_text = f"Released v{version} 🚀"
     check.is_in(expected_text, content, f"Should contain '{expected_text}'")
@@ -1064,7 +1068,7 @@ def then_release_header_shows(version: str, pre_release_context: dict[str, Any])
 def then_changelog_uses_format(version: str, pre_release_context: dict[str, Any]) -> None:
     """Verify CHANGELOG uses correct format."""
     changelog_path = pre_release_context["changelog_path"]
-    content = changelog_path.read_text()
+    content = changelog_path.read_text(encoding="utf-8")
 
     expected_format = f"## [v{version}]"
     check.is_in(expected_format, content, f"Should use format {expected_format}")
@@ -1074,7 +1078,7 @@ def then_changelog_uses_format(version: str, pre_release_context: dict[str, Any]
 def then_news_coherent_narrative(pre_release_context: dict[str, Any]) -> None:
     """Verify NEWS.md has coherent narrative."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have meaningful content
     check.is_true(len(content) > MIN_NARRATIVE_LENGTH, "Should have substantial narrative")
@@ -1084,7 +1088,7 @@ def then_news_coherent_narrative(pre_release_context: dict[str, Any]) -> None:
 def then_narrative_past_tense(pre_release_context: dict[str, Any]) -> None:
     """Verify narrative uses past tense."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should contain past tense indicators
     past_tense_indicators = ["released", "added", "fixed", "improved", "updated"]
@@ -1096,7 +1100,7 @@ def then_narrative_past_tense(pre_release_context: dict[str, Any]) -> None:
 def then_technical_changes_explained(pre_release_context: dict[str, Any]) -> None:
     """Verify technical changes are explained."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should have explanatory content
     check.is_true(len(content) > MIN_SECTION_LENGTH, "Should have explanations")
@@ -1106,7 +1110,7 @@ def then_technical_changes_explained(pre_release_context: dict[str, Any]) -> Non
 def then_summary_highlights_key_items(pre_release_context: dict[str, Any]) -> None:
     """Verify summary highlights key items."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Should mention improvements and fixes
     key_terms = ["improvements", "fixes", "features", "enhancements"]
@@ -1118,7 +1122,7 @@ def then_summary_highlights_key_items(pre_release_context: dict[str, Any]) -> No
 def then_tone_professional(pre_release_context: dict[str, Any]) -> None:
     """Verify tone is professional and informative."""
     news_path = pre_release_context["news_path"]
-    content = news_path.read_text()
+    content = news_path.read_text(encoding="utf-8")
 
     # Basic check - should have substantial, well-structured content
     check.is_true(len(content) > MIN_SECTION_LENGTH, "Should have professional content")
@@ -1171,8 +1175,8 @@ def then_documentation_suitable_for_release(pre_release_context: dict[str, Any])
     news_path = pre_release_context["news_path"]
     changelog_path = pre_release_context["changelog_path"]
 
-    news_content = news_path.read_text()
-    changelog_content = changelog_path.read_text()
+    news_content = news_path.read_text(encoding="utf-8")
+    changelog_content = changelog_path.read_text(encoding="utf-8")
 
     # Should have release-ready content
     check.is_true(len(news_content) > MIN_SECTION_LENGTH, "NEWS.md should have substantial content")
@@ -1198,8 +1202,8 @@ def then_version_clearly_indicated(pre_release_context: dict[str, Any]) -> None:
     news_path = pre_release_context["news_path"]
     changelog_path = pre_release_context["changelog_path"]
 
-    news_content = news_path.read_text()
-    changelog_content = changelog_path.read_text()
+    news_content = news_path.read_text(encoding="utf-8")
+    changelog_content = changelog_path.read_text(encoding="utf-8")
 
     # Should have version references
     has_version = any(char.isdigit() for char in news_content + changelog_content)
@@ -1216,7 +1220,7 @@ def _verify_version_format(content: str, version: str, expected_format: str) -> 
 
 def _verify_markdown_validity(file_path: Path) -> None:
     """Helper to verify markdown validity."""
-    content = file_path.read_text()
+    content = file_path.read_text(encoding="utf-8")
 
     # Basic markdown checks
     check.is_true(content.strip(), "File should not be empty")
@@ -1229,7 +1233,7 @@ def _verify_markdown_validity(file_path: Path) -> None:
 
 def _verify_changelog_format(file_path: Path) -> None:
     """Helper to verify Keep a Changelog format."""
-    content = file_path.read_text()
+    content = file_path.read_text(encoding="utf-8")
 
     # Should have standard changelog elements
     check.is_in("# Changelog", content, "Should have changelog header")

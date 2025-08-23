@@ -76,20 +76,20 @@ All notable changes to this project will be documented in this file.
         changelog_path = temp_path / "CHANGELOG.txt"
         daily_path = temp_path / "DAILY_UPDATES.md"
 
-        news_path.write_text(news_content)
-        changelog_path.write_text(changelog_content)
-        daily_path.write_text("# Daily Updates\n\n")
+        news_path.write_text(news_content, encoding="utf-8")
+        changelog_path.write_text(changelog_content, encoding="utf-8")
+        daily_path.write_text("# Daily Updates\n\n", encoding="utf-8")
 
         # Add some sample commits
         sample_file = temp_path / "src/test.py"
         sample_file.parent.mkdir(exist_ok=True)
-        sample_file.write_text("# hello world")
+        sample_file.write_text("# hello world", encoding="utf-8")
 
         repo.index.add([str(news_path), str(changelog_path), str(daily_path), str(sample_file)])
         repo.index.commit("Initial commit")
 
         # Add another commit
-        sample_file.write_text("# hello updated world")
+        sample_file.write_text("# hello updated world", encoding="utf-8")
         repo.index.add([str(sample_file)])
         repo.index.commit("feat: Update greeting message")
 
@@ -100,6 +100,11 @@ All notable changes to this project will be documented in this file.
         """Create a mock Gemini client."""
         # Create a mock that passes isinstance checks
         client = MagicMock(spec=GeminiClient)
+
+        # Mock internal attributes needed by orchestrator
+        client._client = MagicMock()
+        client._config = MagicMock()
+        client._config.model_tier2 = "gemini-2.5-pro"
 
         # Make async methods return AsyncMock results using correct method names
         async def mock_generate_commit_analysis(*_args, **_kwargs):
@@ -164,7 +169,7 @@ All notable changes to this project will be documented in this file.
 
         # Verify CHANGELOG.txt has version section
         changelog_path = temp_path / "CHANGELOG.txt"
-        changelog_content = changelog_path.read_text()
+        changelog_content = changelog_path.read_text(encoding="utf-8")
 
         check.is_in(
             f"[v{version}]", changelog_content, f"Should contain version section v{version}"
@@ -179,7 +184,7 @@ All notable changes to this project will be documented in this file.
 
         # Verify NEWS.md has release header
         news_path = temp_path / "NEWS.md"
-        news_content = news_path.read_text()
+        news_content = news_path.read_text(encoding="utf-8")
 
         # The release marker appears in the week header format: "## Week N: ... - Released v1.2.3 🚀"
         # Note: This test currently fails due to an issue in the orchestrator's narrative generation task execution
@@ -202,7 +207,7 @@ All notable changes to this project will be documented in this file.
         # Get initial changelog content
         changelog_path = temp_path / "CHANGELOG.txt"
         # Get initial changelog content for verification
-        changelog_path.read_text()
+        changelog_path.read_text(encoding="utf-8")
 
         with (
             patch("git_ai_reporter.cli.GeminiClient", return_value=mock_gemini_client),
@@ -224,7 +229,7 @@ All notable changes to this project will be documented in this file.
             )
 
         # Verify changelog
-        updated_content = changelog_path.read_text()
+        updated_content = changelog_path.read_text(encoding="utf-8")
 
         # Should have new version section at top
         check.is_in(f"[v{version}]", updated_content, f"Should have new version v{version}")
@@ -270,7 +275,7 @@ All notable changes to this project will be documented in this file.
 
         # Verify normal operation
         changelog_path = temp_path / "CHANGELOG.txt"
-        changelog_content = changelog_path.read_text()
+        changelog_content = changelog_path.read_text(encoding="utf-8")
 
         # Should still have [Unreleased] section (not converted to version)
         check.is_in("## [Unreleased]", changelog_content, "Should have unreleased section")
@@ -279,7 +284,7 @@ All notable changes to this project will be documented in this file.
 
         # Verify NEWS.md doesn't have release marker
         news_path = temp_path / "NEWS.md"
-        news_content = news_path.read_text()
+        news_content = news_path.read_text(encoding="utf-8")
 
         # Should not contain "Released" marker in recent content
         lines = news_content.split("\n")
