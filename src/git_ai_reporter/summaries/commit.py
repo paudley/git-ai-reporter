@@ -10,10 +10,10 @@ from git_ai_reporter.models import COMMIT_CATEGORIES
 # Dynamically create the list of categories for the analysis prompt.
 _CATEGORY_LIST_FOR_PROMPT: Final[str] = ", ".join(f"'{cat}'" for cat in COMMIT_CATEGORIES)
 
+# Used by gemini.py for commit analysis
 PROMPT_TEMPLATE: Final[
     str
-] = f"""
-You are an expert senior software engineer tasked with analyzing a git diff to produce a
+] = f"""You are an expert senior software engineer tasked with analyzing a git diff to produce a
 structured summary. Your goal is to identify all distinct logical changes within the commit
 and format them as a JSON object.
 This output will be used to automatically generate changelogs and project reports.

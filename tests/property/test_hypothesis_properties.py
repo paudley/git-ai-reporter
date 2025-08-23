@@ -109,7 +109,7 @@ class TestJsonHelperProperties:
     @given(
         st.dictionaries(
             st.text(min_size=2, max_size=50).filter(  # Changed from min_size=1 to 2
-                lambda x: BACKTICKS not in x and x.strip() != ""
+                lambda x: isinstance(x, str) and BACKTICKS not in x and x.strip() != ""
             ),  # Avoid backticks, empty strings, and whitespace-only strings in keys
             st.one_of(
                 st.text(),
@@ -117,7 +117,11 @@ class TestJsonHelperProperties:
                 st.floats(allow_nan=False, allow_infinity=False),
                 st.booleans(),
                 st.none(),
-            ).filter(lambda x: x is None or not isinstance(x, str) or BACKTICKS not in x),
+            ).filter(
+                lambda x: x is None
+                or not isinstance(x, str)
+                or (isinstance(x, str) and BACKTICKS not in x)
+            ),
         )
     )
     def test_json_roundtrip_preserves_structure(self, data: dict[str, Any]) -> None:

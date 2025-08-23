@@ -241,7 +241,8 @@ class PromptFittingMonitor:
             try:
                 await self._monitoring_task
             except asyncio.CancelledError:
-                pass
+                # Expected when cancelling monitoring task
+                self.logger.debug("Monitoring task cancelled as expected")
 
         self.logger.info("Prompt fitting monitoring stopped")
 

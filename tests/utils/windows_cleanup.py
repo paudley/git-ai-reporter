@@ -23,7 +23,7 @@ WINDOWS_OS_NAME: Final[str] = "nt"
 def _make_writable(path: Path) -> None:
     """Make path writable, ignoring errors."""
     try:
-        os.chmod(path, 0o777)
+        os.chmod(path, 0o755)
     except OSError:
         pass  # Ignore all OS-related errors
 

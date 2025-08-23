@@ -290,8 +290,9 @@ class FileCacheBackend(CacheBackend):
             # Corrupted or invalid file, remove it
             try:
                 await asyncio.to_thread(file_path.unlink)
-            except OSError:
-                pass
+            except OSError as e:
+                # File deletion failed, log but continue
+                get_logger().debug(f"Failed to remove corrupted cache file {file_path}: {e}")
             return None
 
     async def set(self, key: str, entry: CacheEntry[Any]) -> None:
@@ -315,8 +316,9 @@ class FileCacheBackend(CacheBackend):
             if file_path.exists():
                 await asyncio.to_thread(file_path.unlink)
                 return True
-        except OSError:
-            pass
+        except OSError as e:
+            # File deletion failed, log but continue
+            get_logger().debug(f"Failed to delete cache file {file_path}: {e}")
         return False
 
     async def clear(self) -> int:
@@ -327,10 +329,12 @@ class FileCacheBackend(CacheBackend):
                 try:
                     await asyncio.to_thread(file_path.unlink)
                     count += 1
-                except OSError:
-                    pass
-        except OSError:
-            pass
+                except OSError as e:
+                    # Individual file deletion failed, log but continue
+                    get_logger().debug(f"Failed to delete cache file {file_path}: {e}")
+        except OSError as e:
+            # Cache directory access failed, log but continue
+            get_logger().debug(f"Failed to access cache directory {self.cache_dir}: {e}")
         return count
 
     async def size(self) -> int:
@@ -352,8 +356,9 @@ class FileCacheBackend(CacheBackend):
                         keys.append(entry.key.to_string())
                 except (OSError, pickle.UnpicklingError, EOFError):
                     continue
-        except OSError:
-            pass
+        except OSError as e:
+            # Cache directory access failed, log but continue
+            get_logger().debug(f"Failed to list cache directory {self.cache_dir}: {e}")
         return keys
 
 

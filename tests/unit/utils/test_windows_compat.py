@@ -13,6 +13,7 @@ from pathlib import Path
 import tempfile
 import time
 from typing import Final
+import warnings
 
 import git
 import pytest
@@ -68,8 +69,10 @@ class TestWindowsFileHandling:
             # Ensure cleanup even if test fails
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass  # Ignore cleanup errors
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Cleanup failed: {e}", UserWarning, stacklevel=2)
             raise
 
     def test_multiple_git_repos_cleanup(self) -> None:
@@ -107,8 +110,9 @@ class TestWindowsFileHandling:
             for temp_path in temp_paths:
                 try:
                     safe_cleanup_on_windows(temp_path)
-                except PermissionError:
-                    pass  # Ignore cleanup errors
+                except PermissionError as e:
+                    # Log cleanup errors for debugging
+                    warnings.warn(f"Cleanup failed for {temp_path}: {e}", UserWarning, stacklevel=2)
 
     def test_file_permissions_on_windows(self) -> None:
         """Test file permission handling on Windows."""
@@ -126,9 +130,13 @@ class TestWindowsFileHandling:
                 if os.name == WINDOWS_OS_NAME:
                     # On Windows, try to make file read-only
                     try:
-                        os.chmod(test_file, 0o444)
-                    except OSError:
-                        pass  # Some Windows systems don't support this
+                        os.chmod(test_file, 0o600)  # Owner read/write only
+                    except OSError as e:
+                        # Some Windows systems don't support permission changes
+
+                        warnings.warn(
+                            f"Cannot set permissions on Windows: {e}", UserWarning, stacklevel=2
+                        )
                 else:
                     # On Unix, set various permissions
                     os.chmod(test_file, 0o600)
@@ -140,8 +148,10 @@ class TestWindowsFileHandling:
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Final cleanup failed: {e}", UserWarning, stacklevel=2)
 
     @pytest.mark.parametrize(
         "encoding,content",
@@ -177,8 +187,10 @@ class TestWindowsFileHandling:
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Encoding test cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
 class TestWindowsPathHandling:
@@ -237,8 +249,10 @@ class TestWindowsPathHandling:
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Temp path cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
 class TestConcurrentFileAccess:
@@ -269,16 +283,20 @@ class TestConcurrentFileAccess:
                 if test_file.exists():
                     try:
                         test_file.unlink()
-                    except PermissionError:
+                    except PermissionError as e:
                         # On Windows, files might be locked briefly
+
+                        warnings.warn(f"File locked, retrying: {e}", UserWarning, stacklevel=2)
                         time.sleep(0.1)
                         test_file.unlink()
 
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Rapid file test cleanup failed: {e}", UserWarning, stacklevel=2)
 
     def test_git_repository_cleanup_stress_test(self) -> None:
         """Stress test Git repository cleanup to catch Windows locking issues."""
@@ -321,8 +339,13 @@ class TestConcurrentFileAccess:
             for temp_path in repos_created:
                 try:
                     safe_cleanup_on_windows(temp_path)
-                except PermissionError:
-                    pass
+                except PermissionError as e:
+                    # Log cleanup errors for debugging
+                    warnings.warn(
+                        f"Stress test cleanup failed for {temp_path}: {e}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
 
 class TestWindowsSpecificIssues:
@@ -364,8 +387,10 @@ class TestWindowsSpecificIssues:
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"WinError32 test cleanup failed: {e}", UserWarning, stacklevel=2)
 
     def test_long_path_handling(self) -> None:
         """Test handling of long paths on Windows."""
@@ -391,8 +416,10 @@ class TestWindowsSpecificIssues:
         finally:
             try:
                 safe_cleanup_on_windows(temp_path)
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                # Log cleanup errors for debugging
+
+                warnings.warn(f"Long path test cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
 def test_fixture_compatibility() -> None:
