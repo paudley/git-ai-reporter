@@ -104,7 +104,7 @@ Feature: AI-Powered Analysis with Gemini
             | refactor: Rename internal function         | false    |
             | fix: Update deprecated method              | false    |
             | feat: Add backward-incompatible feature    | true     |
-        When the AI analyzes these commits
+        When the AI analyzes these commits for breaking changes
         Then breaking changes should be clearly marked
         And the changelog should include warnings
         And migration notes should be suggested

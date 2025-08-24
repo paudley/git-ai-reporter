@@ -28,20 +28,22 @@ class Settings(BaseSettings):
     DAILY_UPDATES_FILE: str = "DAILY_UPDATES.md"
 
     # Commit Triviality Heuristics
+    # Only filter out truly trivial commits that don't represent meaningful work
+    # Important: test, refactor, and ci commits often contain substantial changes
     TRIVIAL_COMMIT_TYPES: list[str] = [
+        "style",  # Code formatting only
+        # Note: "chore" kept but many chores like dependency updates are important
+        # Consider removing "chore" if you want to track dependency updates
         "chore",
-        "docs",
-        "style",
-        "refactor",
-        "test",
-        "ci",
     ]
+    # Only filter files that are truly non-code documentation
+    # Important: Many .md files contain critical project documentation
     TRIVIAL_FILE_PATTERNS: list[str] = [
-        r"\.md$",
-        r"docs/",
-        r"\.gitignore",
-        r"\.cfg$",
-        r"\.toml$",
+        r"\.gitignore$",
+        r"\.editorconfig$",
+        r"\.prettierrc",
+        # Note: Removed "\.md$" and "docs/" as documentation changes are important
+        # Note: Removed "\.cfg$" and "\.toml$" as config changes affect functionality
     ]
 
     # LLM Generation Parameters

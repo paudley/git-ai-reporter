@@ -216,10 +216,11 @@ class TestGitAnalyzer:
         check.equal(commits[0].committed_datetime, datetime(2025, 1, 5, 10, 0, 0))
         check.equal(commits[1].committed_datetime, datetime(2025, 1, 6, 10, 0, 0))
         check.equal(commits[2].committed_datetime, datetime(2025, 1, 7, 10, 0, 0))
+        # Verify that end_date is made inclusive by adding 1 day
         mock_repo.iter_commits.assert_called_once_with(
             "--all",
             after=start_date.isoformat(),
-            before=end_date.isoformat(),
+            before=(end_date + timedelta(days=1)).isoformat(),
         )
 
     @allure.title("Handle Git command errors when fetching commits")

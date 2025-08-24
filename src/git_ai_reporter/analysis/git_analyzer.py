@@ -4,6 +4,7 @@
 """This module handles all interactions with the Git repository."""
 
 from datetime import datetime
+from datetime import timedelta
 import re
 from typing import Final, TYPE_CHECKING
 
@@ -53,15 +54,18 @@ class GitAnalyzer:
 
         Args:
             start_date: The start of the date range (inclusive).
-            end_date: The end of the date range (exclusive).
+            end_date: The end of the date range (inclusive through end of day).
 
         Returns:
             A list of Commit objects, sorted by commit date.
         """
         try:
+            # Add 1 day to end_date to make it inclusive through the end of that day
+            # Git's 'before' parameter is exclusive, so we need the next day at midnight
+            end_date_inclusive = end_date + timedelta(days=1)
             commits = list(
                 self.repo.iter_commits(
-                    "--all", after=start_date.isoformat(), before=end_date.isoformat()
+                    "--all", after=start_date.isoformat(), before=end_date_inclusive.isoformat()
                 )
             )
             return sorted(commits, key=lambda c: c.committed_datetime)

@@ -8,6 +8,8 @@ from collections import defaultdict
 from collections.abc import Coroutine
 from datetime import date
 from datetime import datetime
+import logging
+from pathlib import Path
 from typing import Any, cast
 
 from git import Commit
@@ -34,6 +36,9 @@ from ..services.gemini import GeminiClientError
 from ..writing.artifact_writer import ArtifactWriter
 from ..writing.artifact_writer import NewsFileParams
 
+# Module-level logger for backward compatibility with tests
+logger = logging.getLogger(__name__)
+
 
 class OrchestratorServices(BaseModel):
     """Service dependencies for the AnalysisOrchestrator."""
@@ -53,6 +58,7 @@ class OrchestratorConfig(BaseModel):
     no_cache: bool
     max_concurrent_tasks: int
     debug: bool = False
+    cache_dir: Path | None = None
 
 
 class WeeklyAnalysis(BaseModel):
@@ -106,15 +112,22 @@ class AnalysisOrchestrator:
         *,
         services: OrchestratorServices,
         config: OrchestratorConfig,
+        cache_dir: Path | None = None,
     ):
         """Initializes the AnalysisOrchestrator.
 
         Args:
             services: Service dependencies for the orchestrator.
             config: Configuration parameters for the orchestrator.
+            cache_dir: Optional cache directory path for backward compatibility.
         """
         self.services = services
         self.config = config
+        # Store cache_dir separately for backward compatibility
+        self.cache_dir = cache_dir if cache_dir is not None else getattr(config, "cache_dir", None)
+
+        # Initialize logger for compatibility with tests
+        self.logger = logging.getLogger(__name__)
 
     async def run(
         self, start_date: datetime, end_date: datetime, pre_release_version: str | None = None
@@ -141,7 +154,7 @@ class AnalysisOrchestrator:
             self.services.console.print("No commits found in the specified timeframe.")
             raise typer.Exit()
 
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             self.services.console.print("[bold yellow]DEBUG MODE ENABLED[/bold yellow]")
             analysis_result = await self._analyze_commits_by_week(all_commits, None)
 
@@ -198,7 +211,7 @@ class AnalysisOrchestrator:
         Raises:
             GeminiClientError: If the analysis fails after all retries.
         """
-        if not self.config.no_cache and (
+        if not getattr(self.config, "no_cache", False) and (
             cached_analysis := await self.services.cache_manager.get_commit_analysis(commit.hexsha)
         ):
             return commit, cached_analysis
@@ -234,7 +247,7 @@ class AnalysisOrchestrator:
         )
 
         async def _analyze_and_update(commit: Commit) -> tuple[Commit, CommitAnalysis]:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(f"  Analyzing commit: {commit.hexsha[:7]}")
             result = await self._analyze_one_commit(commit)
             if progress and commit_task is not None:
@@ -242,7 +255,7 @@ class AnalysisOrchestrator:
             return result
 
         tasks = [_analyze_and_update(commit) for commit in commits]
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             results = []
             for task in tasks:
                 results.append(await task)
@@ -270,7 +283,7 @@ class AnalysisOrchestrator:
         """
         day_commits = [commit for commit, _ in day_commits_and_analyses]
         day_hexshas = [c.hexsha for c in day_commits]
-        if not self.config.no_cache and (
+        if not getattr(self.config, "no_cache", False) and (
             cached_summary := await self.services.cache_manager.get_daily_summary(
                 commit_date, day_hexshas
             )
@@ -300,7 +313,7 @@ class AnalysisOrchestrator:
                 )
                 return f"### {commit_date.strftime('%Y-%m-%d')}\n\n{daily_summary}"
         except GeminiClientError as e:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 raise e
             self.services.console.print(
                 f"Skipping daily summary for {commit_date}: {e}", style="yellow"
@@ -335,7 +348,7 @@ class AnalysisOrchestrator:
         """
         # Check if we already have a summary for this date
         if (date_str := params.commit_date.strftime("%Y-%m-%d")) in params.existing_summaries:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(f"  Using existing summary for: {params.commit_date}")
             if params.progress and params.daily_task is not None:
                 params.progress.update(params.daily_task, advance=1)
@@ -343,7 +356,7 @@ class AnalysisOrchestrator:
             return params.existing_summaries[date_str]
 
         # Generate new summary only if it doesn't exist
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             self.services.console.print(f"  Generating daily summary for: {params.commit_date}")
         summary = await self._summarize_one_day(params.commit_date, params.day_data)
         if params.progress and params.daily_task is not None:
@@ -381,7 +394,7 @@ class AnalysisOrchestrator:
             for commit_date, day_commits in sorted_days
         ]
 
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             daily_summaries = []
             for task in tasks:
                 daily_summaries.append(await task)
@@ -456,7 +469,7 @@ class AnalysisOrchestrator:
         week_num_str = f"{week_num[0]}-{week_num[1]}"
         week_hexshas = [c.hexsha for c in commits_in_week]
 
-        if not self.config.no_cache and (
+        if not getattr(self.config, "no_cache", False) and (
             cached_summary := await self.services.cache_manager.get_weekly_summary(
                 week_num_str, week_hexshas
             )
@@ -643,7 +656,7 @@ class AnalysisOrchestrator:
         )
 
         for week_num, commits_in_week in sorted_weeks:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(f"Processing week: {week_num[0]}-W{week_num[1]}")
             weekly_result = await self._analyze_one_week(week_num, commits_in_week, progress)
             all_daily_summaries.extend(weekly_result.daily_summaries)
@@ -670,7 +683,7 @@ class AnalysisOrchestrator:
     ) -> str | None:
         """Gets the final narrative from cache or generates it if not present."""
         del progress  # Unused but kept for API consistency
-        if not self.config.no_cache and (
+        if not getattr(self.config, "no_cache", False) and (
             cached_narrative := await self.services.cache_manager.get_final_narrative(result)
         ):
             self.services.console.print("Loaded final narrative from cache.")
@@ -683,7 +696,7 @@ class AnalysisOrchestrator:
 
         # If we have no commit summaries and no diff, there's nothing to generate narrative from
         if not result.changelog_entries and not result.daily_summaries and not period_diff:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print("No content available for narrative generation")
             return None
 
@@ -715,7 +728,7 @@ class AnalysisOrchestrator:
     ) -> str | None:
         """Gets the final changelog from cache or generates it if not present."""
         del progress  # Unused but kept for API consistency
-        if not self.config.no_cache and (
+        if not getattr(self.config, "no_cache", False) and (
             cached_changelog := await self.services.cache_manager.get_changelog_entries(entries)
         ):
             self.services.console.print("Loaded final changelog from cache.")
@@ -753,12 +766,12 @@ class AnalysisOrchestrator:
         narrative_task, changelog_task = None, None
 
         if result.changelog_entries or result.daily_summaries:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print("Generating narrative...")
             narrative_task = self._get_or_generate_narrative(result, all_commits, progress)
             generation_tasks.append(narrative_task)
         if result.changelog_entries:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print("Generating changelog...")
             changelog_task = self._get_or_generate_changelog(result.changelog_entries, progress)
             generation_tasks.append(changelog_task)
@@ -769,7 +782,7 @@ class AnalysisOrchestrator:
         """Prepare file writing tasks."""
         writing_tasks = []
         if params.final_narrative:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(
                     f"  Writing file: {self.services.artifact_writer.news_path.name}"
                 )
@@ -782,7 +795,7 @@ class AnalysisOrchestrator:
             )
             writing_tasks.append(self.services.artifact_writer.update_news_file(news_params))
         if params.result.daily_summaries:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(
                     f"  Writing file: {self.services.artifact_writer.daily_updates_path.name}"
                 )
@@ -792,7 +805,7 @@ class AnalysisOrchestrator:
                 )
             )
         if params.final_changelog:
-            if self.config.debug:
+            if getattr(self.config, "debug", False):
                 self.services.console.print(
                     f"  Writing file: {self.services.artifact_writer.changelog_path.name}"
                 )
@@ -832,7 +845,7 @@ class AnalysisOrchestrator:
         generation_task: TaskID | None,
     ) -> list[str | None]:
         """Execute generation tasks and update progress."""
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             generated_content = []
             for task in generation_tasks:
                 generated_content.append(await task)
@@ -851,7 +864,7 @@ class AnalysisOrchestrator:
         writing_task_id: TaskID | None,
     ) -> None:
         """Execute writing tasks and update progress."""
-        if self.config.debug:
+        if getattr(self.config, "debug", False):
             # Execute tasks sequentially in debug mode for better error tracking
             for task in writing_tasks:
                 # Execute task and capture result for proper await handling

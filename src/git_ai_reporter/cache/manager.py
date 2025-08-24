@@ -81,6 +81,52 @@ class CacheManager:
         """Creates a stable hash from a list of strings."""
         return hashlib.sha256("".join(sorted(items)).encode()).hexdigest()[:16]
 
+    def generate_key(self, commit_hash: str, prompt: str, version: str) -> str:
+        """Generate a deterministic cache key for a given commit and prompt.
+
+        Args:
+            commit_hash: The git commit hash.
+            prompt: The prompt or context used for analysis.
+            version: The version identifier for cache compatibility.
+
+        Returns:
+            A deterministic cache key string.
+        """
+        return self._get_hash([commit_hash, prompt, version])
+
+    def save(self, key: str, data: CommitAnalysis) -> None:
+        """Save data to cache with the given key.
+
+        Args:
+            key: The cache key.
+            data: The CommitAnalysis data to cache.
+        """
+        # Ensure the directory exists before saving
+        self._commits_path.mkdir(parents=True, exist_ok=True)
+        cache_file = self._commits_path / f"{key}.json"
+        cache_file.write_text(data.model_dump_json(indent=2), encoding="utf-8")
+
+    def load(self, key: str, data_type: type[CommitAnalysis]) -> CommitAnalysis | None:
+        """Load data from cache with the given key.
+
+        Args:
+            key: The cache key.
+            data_type: The expected data type (for validation).
+
+        Returns:
+            The cached CommitAnalysis or None if not found.
+        """
+        cache_file = self._commits_path / f"{key}.json"
+        if not cache_file.exists():
+            return None
+
+        try:
+            content = cache_file.read_text(encoding="utf-8")
+            data = json.loads(content)
+            return data_type.model_validate(data)
+        except (json.JSONDecodeError, ValidationError, IOError):
+            return None
+
     async def get_daily_summary(self, commit_date: date, commit_hexshas: list[str]) -> str | None:
         """Retrieves a cached daily summary.
 

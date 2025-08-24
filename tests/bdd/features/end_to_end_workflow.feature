@@ -82,7 +82,7 @@ Feature: End-to-End Git Reporter Workflow
 
     Scenario: Handle API failures gracefully
         Given the Gemini API is temporarily unavailable
-        When I run git-ai-reporter
+        When I run git-ai-reporter with API failures
         Then the tool should retry with exponential backoff
         And error messages should be user-friendly
         And partial results should be cached

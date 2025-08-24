@@ -260,6 +260,10 @@ class ArtifactWriter:
         week_header = format_week_header(
             params.start_date, params.end_date, params.pre_release_version
         )
+
+        # Log the week being processed
+        self._console.print(f"Processing week: {week_header}", style="dim")
+
         existing_content = await self._read_or_create_news_file()
 
         if not existing_content.strip():
@@ -272,7 +276,7 @@ class ArtifactWriter:
             )
             content_block = await self._create_new_news_entry(entry_params)
             await self._insert_content_after_header(self.news_path, content_block, NEWS_HEADER)
-            self._console.print(f"Successfully updated {self.news_path}", style="green")
+            self._console.print(f"Created new {self.news_path} with initial content", style="green")
             return
 
         weekly_entries = parse_weekly_entries(existing_content)
@@ -284,6 +288,9 @@ class ArtifactWriter:
         for entry in weekly_entries:
             if entry["header"] == week_header:
                 existing_entry = entry
+                self._console.print(
+                    f"Found existing entry for {week_header}, merging content", style="dim"
+                )
                 break
 
         if existing_entry:
@@ -302,7 +309,12 @@ class ArtifactWriter:
             )
 
         await self._save_weekly_entries(weekly_entries)
-        self._console.print(f"Successfully updated {self.news_path}", style="green")
+
+        # Only report success if we actually wrote content
+        if weekly_entries:
+            self._console.print(f"Successfully updated {self.news_path}", style="green")
+        else:
+            self._console.print(f"No content to write to {self.news_path}", style="yellow")
 
     async def _write_news_file_with_entries(
         self, weekly_entries: list[dict[str, str | datetime]]
