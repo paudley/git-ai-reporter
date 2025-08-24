@@ -1,0 +1,79 @@
+# Docker Compose configuration for Allure test reporting
+# Provides both the Allure Docker Service and UI for easy viewing of test results
+# 
+# Usage:
+#   docker compose up -d          # Start services in background
+#   docker compose down           # Stop and remove services
+#   docker compose logs allure    # View service logs
+#   docker compose logs allure-ui # View UI logs
+
+services:
+  # Allure Docker Service - Core reporting engine
+  allure:
+    image: "frankescobar/allure-docker-service:latest"
+    container_name: "git-reporter-allure"
+    user: "${UID:-1000}:${GID:-1000}"      # Run as current user to avoid permission issues
+    environment:
+      # Configuration for automatic result processing
+      CHECK_RESULTS_EVERY_SECONDS: 3        # Check for new results every 3 seconds
+      KEEP_HISTORY: "1"                      # Preserve test execution history
+      KEEP_HISTORY_LATEST: "25"             # Keep last 25 executions in history
+      SECURITY_ENABLED: "0"                 # Disable authentication for local development
+      MAKE_VIEWER_ENDPOINTS_PUBLIC: "1"     # Allow public access to viewer endpoints
+      
+      # Optional: Enable server-side report generation
+      # TZ: "UTC"                           # Set timezone
+      # URL_PREFIX: "/allure"               # Add URL prefix if needed
+    ports:
+      - "5050:5050"                         # Expose service on port 5050
+    volumes:
+      # Mount allure-results directory from host with proper permissions
+      - ./allure-results:/app/allure-results:rw
+      # Mount for persistent history storage
+      - allure-data:/app/allure-docker-api/static/projects:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/allure-docker-service/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Allure Docker Service UI - Friendly web interface
+  allure-ui:
+    image: "frankescobar/allure-docker-service-ui:latest"
+    container_name: "git-reporter-allure-ui"
+    user: "${UID:-1000}:${GID:-1000}"      # Run as current user to avoid permission issues
+    environment:
+      # Configure connection to Allure service
+      ALLURE_DOCKER_PUBLIC_API_URL: "http://localhost:5050"
+      ALLURE_DOCKER_PUBLIC_API_URL_PREFIX: ""
+      
+      # Optional: Configure URL prefix for reverse proxy setups
+      # URL_PREFIX: "/allure-ui"
+      
+      # Optional: Set custom port (defaults to 5252)
+      # PORT: "5252"
+    ports:
+      - "5252:5252"                         # Expose UI on port 5252
+    depends_on:
+      allure:
+        condition: service_healthy          # Wait for Allure service to be healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5252"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  # Persistent volume for Allure history data
+  allure-data:
+    driver: local
+
+# Optional: Define custom network for service isolation
+networks:
+  default:
+    name: git-reporter-allure-network
+    driver: bridge

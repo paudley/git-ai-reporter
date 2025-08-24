@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
+import allure
 import pytest
 import pytest_check as check
 from rich.console import Console
@@ -98,10 +99,18 @@ def orchestrator_fixture(
     return AnalysisOrchestrator(services=services, config=config)
 
 
+@allure.feature("Orchestration - Daily Summary Reuse")
+@allure.story("Summary Optimization and Caching")
 class TestDailySummaryReuse:
     """Test cases for daily summary reuse functionality."""
 
     @pytest.mark.asyncio
+    @allure.title("Reuse existing daily summaries to avoid regeneration")
+    @allure.description(
+        "Verifies that existing daily summaries are properly reused instead of making unnecessary API calls"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "optimization", "caching", "daily-summaries")
     async def test_generate_daily_summaries_uses_existing(
         self,
         orchestrator_fixture: AnalysisOrchestrator,
@@ -109,12 +118,13 @@ class TestDailySummaryReuse:
         mock_gemini_client: MagicMock,
     ) -> None:
         """Test that existing daily summaries are reused instead of regenerated."""
-        # Setup existing summaries
-        existing_summaries = {
-            "2025-08-10": "### 2025-08-10\n\nExisting summary for August 10.",
-            "2025-08-09": "### 2025-08-09\n\nExisting summary for August 9.",
-        }
-        mock_artifact_writer.read_existing_daily_summaries.return_value = existing_summaries
+        with allure.step("Setup existing daily summaries"):
+            # Setup existing summaries
+            existing_summaries = {
+                "2025-08-10": "### 2025-08-10\n\nExisting summary for August 10.",
+                "2025-08-09": "### 2025-08-09\n\nExisting summary for August 9.",
+            }
+            mock_artifact_writer.read_existing_daily_summaries.return_value = existing_summaries
 
         # Create mock commits for dates that have existing summaries
         commit1 = MagicMock()
@@ -150,14 +160,19 @@ class TestDailySummaryReuse:
             (commit3, analysis3),
         ]
 
-        # Mock the synthesize_daily_summary to return a new summary for the new date
-        mock_gemini_client.synthesize_daily_summary.return_value = "New summary for August 11"
+        with allure.step("Setup new summary generation for new date"):
+            # Mock the synthesize_daily_summary to return a new summary for the new date
+            mock_gemini_client.synthesize_daily_summary.return_value = "New summary for August 11"
 
-        # Call the method
-        summaries = await orchestrator_fixture._generate_daily_summaries(commit_and_analysis, None)
+        with allure.step("Generate daily summaries with mixed existing/new content"):
+            # Call the method
+            summaries = await orchestrator_fixture._generate_daily_summaries(
+                commit_and_analysis, None
+            )
 
-        # Verify that existing summaries were used
-        check.equal(len(summaries), 3)
+        with allure.step("Verify summary reuse and generation results"):
+            # Verify that existing summaries were used
+            check.equal(len(summaries), 3)
 
         # Check that existing summaries are in the result
         check.is_in("### 2025-08-10", "\n".join(summaries))
@@ -173,6 +188,12 @@ class TestDailySummaryReuse:
         check.equal(mock_gemini_client.synthesize_daily_summary.call_count, 1)
 
     @pytest.mark.asyncio
+    @allure.title("Skip API calls when all summaries exist")
+    @allure.description(
+        "Verifies that no API calls are made when all daily summaries already exist, maximizing efficiency"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "optimization", "api-efficiency")
     async def test_generate_daily_summaries_all_existing(
         self,
         orchestrator_fixture: AnalysisOrchestrator,
@@ -210,16 +231,21 @@ class TestDailySummaryReuse:
             (commit2, analysis2),
         ]
 
-        # Call the method
-        summaries = await orchestrator_fixture._generate_daily_summaries(commit_and_analysis, None)
+        with allure.step("Generate summaries with all existing content"):
+            # Call the method
+            summaries = await orchestrator_fixture._generate_daily_summaries(
+                commit_and_analysis, None
+            )
 
-        # Verify that existing summaries were used
-        check.equal(len(summaries), 2)
-        check.is_in("Existing summary for August 10", "\n".join(summaries))
-        check.is_in("Existing summary for August 9", "\n".join(summaries))
+        with allure.step("Verify all existing summaries were reused"):
+            # Verify that existing summaries were used
+            check.equal(len(summaries), 2)
+            check.is_in("Existing summary for August 10", "\n".join(summaries))
+            check.is_in("Existing summary for August 9", "\n".join(summaries))
 
-        # Verify that synthesize_daily_summary was never called
-        mock_gemini_client.synthesize_daily_summary.assert_not_called()
+        with allure.step("Verify no API calls were made"):
+            # Verify that synthesize_daily_summary was never called
+            mock_gemini_client.synthesize_daily_summary.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_generate_daily_summaries_debug_mode(

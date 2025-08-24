@@ -228,6 +228,14 @@ pytest
 # Run with coverage report
 pytest --cov=src/git_ai_reporter --cov-report=html
 
+# Run with Allure reporting
+pytest --alluredir=allure-results
+
+# View Allure reports locally (requires Docker)
+docker compose up -d
+./scripts/send_to_allure.sh
+./scripts/view_allure.sh
+
 # Type checking
 mypy src/
 
@@ -245,6 +253,7 @@ Git AI Reporter employs a sophisticated testing strategy:
 - **Property-Based Testing**: Using Hypothesis for edge cases
 - **Parallel Execution**: Tests run concurrently for speed
 - **Comprehensive Test Coverage**: Extensive test coverage for core functionality
+- **Visual Test Reporting**: Allure integration for comprehensive test visualization and CI/CD reporting
 
 ### Updating Tests
 

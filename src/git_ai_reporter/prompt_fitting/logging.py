@@ -5,7 +5,12 @@
 
 This module provides structured logging capabilities for debugging,
 monitoring, and performance analysis of prompt fitting strategies.
+
+NOTE: This module intentionally shadows the Python builtin 'logging' module
+for domain-specific prompt fitting logging functionality.
 """
+
+# flake8: noqa: A005
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager

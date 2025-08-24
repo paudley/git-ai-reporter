@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Critical Tests",
+    "description": "Critical smoke tests essential for project functionality",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*smoke.*",
+    "traceRegex": ".*",
+    "flaky": false
+  },
+  {
+    "name": "Product Defects",
+    "description": "Test failures indicating product defects requiring immediate attention",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*AssertionError.*|.*ValueError.*|.*TypeError.*",
+    "traceRegex": ".*",
+    "flaky": false
+  },
+  {
+    "name": "Test Defects",
+    "description": "Issues with test infrastructure, setup, or configuration",
+    "matchedStatuses": ["broken"],
+    "messageRegex": ".*fixture.*|.*setup.*|.*teardown.*|.*ImportError.*",
+    "traceRegex": ".*",
+    "flaky": false
+  },
+  {
+    "name": "Integration Failures",
+    "description": "Failures in integration tests involving multiple components",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*integration.*",
+    "traceRegex": ".*test_.*integration.*",
+    "flaky": false
+  },
+  {
+    "name": "BDD Scenario Failures",
+    "description": "Behavior-driven development scenario failures",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*bdd.*|.*scenario.*|.*step.*",
+    "traceRegex": ".*test_.*bdd.*|.*step_defs.*",
+    "flaky": false
+  },
+  {
+    "name": "API/External Service Issues",
+    "description": "Failures related to external API calls or service dependencies",
+    "matchedStatuses": ["failed", "broken", "skipped"],
+    "messageRegex": ".*requires_api_key.*|.*ConnectionError.*|.*TimeoutError.*|.*HTTPError.*",
+    "traceRegex": ".*gemini.*|.*api.*|.*service.*",
+    "flaky": true
+  },
+  {
+    "name": "Performance Issues",
+    "description": "Slow running tests or performance-related failures",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*slow.*|.*timeout.*|.*performance.*",
+    "traceRegex": ".*",
+    "flaky": false
+  },
+  {
+    "name": "Property-Based Test Failures",
+    "description": "Hypothesis property-based testing failures revealing edge cases",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*hypothesis.*|.*property.*|.*shrinking.*",
+    "traceRegex": ".*hypothesis.*",
+    "flaky": false
+  },
+  {
+    "name": "Async/Concurrency Issues",
+    "description": "Failures in asynchronous or concurrent test execution",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*asyncio.*|.*async.*|.*await.*",
+    "traceRegex": ".*async.*",
+    "flaky": true
+  },
+  {
+    "name": "Environment/Setup Issues",
+    "description": "Issues related to test environment setup or platform differences",
+    "matchedStatuses": ["broken", "skipped"],
+    "messageRegex": ".*windows.*|.*linux.*|.*macos.*|.*platform.*|.*environment.*",
+    "traceRegex": ".*",
+    "flaky": true
+  },
+  {
+    "name": "VCR/Mock Issues",
+    "description": "Issues with VCR cassettes or mocking infrastructure",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*vcr.*|.*cassette.*|.*mock.*|.*patch.*",
+    "traceRegex": ".*vcr.*|.*mock.*",
+    "flaky": false
+  },
+  {
+    "name": "Skipped Tests",
+    "description": "Tests that were skipped due to conditions or requirements",
+    "matchedStatuses": ["skipped"],
+    "messageRegex": ".*",
+    "traceRegex": ".*",
+    "flaky": false
+  },
+  {
+    "name": "Smoke Test Failures",
+    "description": "Critical smoke tests that verify core functionality",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*",
+    "traceRegex": ".*smoke.*",
+    "flaky": false
+  },
+  {
+    "name": "Coverage-Related Tests",
+    "description": "Tests focused on code coverage and testing completeness",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*coverage.*",
+    "traceRegex": ".*coverage.*",
+    "flaky": false
+  },
+  {
+    "name": "Refactored Test Suites",
+    "description": "Tests in refactored suites that may have structural changes",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*",
+    "traceRegex": ".*refactored.*",
+    "flaky": false
+  }
+]

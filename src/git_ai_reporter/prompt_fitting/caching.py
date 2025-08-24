@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Blackcat Informatics® Inc.
+# flake8: noqa: A003
 
 """Intelligent caching system for prompt fitting operations.
 
@@ -170,7 +171,9 @@ class CacheBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def set(self, key: str, entry: CacheEntry[Any]) -> None:
+    async def set(
+        self, key: str, entry: CacheEntry[Any]
+    ) -> None:  # pylint: disable=redefined-builtin  # pylint: disable=redefined-builtin
         """Set cache entry."""
         raise NotImplementedError
 
@@ -213,7 +216,9 @@ class MemoryCacheBackend(CacheBackend):
                 return entry.access()
             return None
 
-    async def set(self, key: str, entry: CacheEntry[Any]) -> None:
+    async def set(
+        self, key: str, entry: CacheEntry[Any]
+    ) -> None:  # pylint: disable=redefined-builtin
         """Set entry, evicting oldest if necessary."""
         async with self._lock:
             if key in self.cache:
@@ -295,7 +300,9 @@ class FileCacheBackend(CacheBackend):
                 get_logger().debug(f"Failed to remove corrupted cache file {file_path}: {e}")
             return None
 
-    async def set(self, key: str, entry: CacheEntry[Any]) -> None:
+    async def set(
+        self, key: str, entry: CacheEntry[Any]
+    ) -> None:  # pylint: disable=redefined-builtin
         """Set entry to file."""
         file_path = self._get_file_path(key)
 
@@ -379,7 +386,9 @@ class CachedContentFitter(ContentFitter):
         self.logger = get_logger(f"Cached_{config.base_fitter.__class__.__name__}")
         self.statistics = CacheStatistics()
 
-    async def fit_content(self, content: str, target_tokens: int) -> FittingResult[ContentFitterT]:
+    async def fit_content(
+        self, content: str, target_tokens: int
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Fit content with intelligent caching."""
 
         # Create cache key

@@ -11,6 +11,7 @@ from datetime import timezone
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
+import allure
 import pytest
 import pytest_check as check
 from rich.console import Console
@@ -119,10 +120,18 @@ def orchestrator(
     return AnalysisOrchestrator(services=services, config=config)
 
 
+@allure.feature("Orchestration - Coverage")
+@allure.story("Edge Cases and Error Handling")
 class TestOrchestratorCoverage:
     """Test suite for achieving comprehensive coverage in orchestrator."""
 
     @pytest.mark.asyncio
+    @allure.title("Handle day with no analyzable content")
+    @allure.description(
+        "Verifies that days with empty commit analyses are handled gracefully without generating summaries"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("orchestration", "edge-cases", "empty-content")
     async def test_summarize_one_day_no_full_log(
         self,
         mock_git_analyzer: MagicMock,  # pylint: disable=redefined-outer-name
@@ -132,13 +141,14 @@ class TestOrchestratorCoverage:
         mock_console: MagicMock,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test _summarize_one_day when there's no full log (line 229)."""
-        services = OrchestratorServices(
-            git_analyzer=mock_git_analyzer,
-            gemini_client=mock_gemini_client,
-            cache_manager=mock_cache_manager,
-            artifact_writer=mock_artifact_writer,
-            console=mock_console,
-        )
+        with allure.step("Setup orchestrator for empty content test"):
+            services = OrchestratorServices(
+                git_analyzer=mock_git_analyzer,
+                gemini_client=mock_gemini_client,
+                cache_manager=mock_cache_manager,
+                artifact_writer=mock_artifact_writer,
+                console=mock_console,
+            )
         config = OrchestratorConfig(
             no_cache=False,
             max_concurrent_tasks=10,
@@ -146,21 +156,28 @@ class TestOrchestratorCoverage:
         )
         orchestrator = AnalysisOrchestrator(services=services, config=config)
 
-        commit = MagicMock()
-        commit.hexsha = "abc123"
-        commit.committed_datetime = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        with allure.step("Create commit with empty analysis"):
+            commit = MagicMock()
+            commit.hexsha = "abc123"
+            commit.committed_datetime = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
-        # Empty analysis results in no log entries
-        analysis = CommitAnalysis(changes=[], trivial=False)
-        day_commits_and_analyses = [(commit, analysis)]
+            # Empty analysis results in no log entries
+            analysis = CommitAnalysis(changes=[], trivial=False)
+            day_commits_and_analyses = [(commit, analysis)]
 
-        result = await orchestrator._summarize_one_day(
-            commit.committed_datetime.date(), day_commits_and_analyses
-        )
+        with allure.step("Execute day summarization with empty content"):
+            result = await orchestrator._summarize_one_day(
+                commit.committed_datetime.date(), day_commits_and_analyses
+            )
 
-        check.is_none(result)
+        with allure.step("Verify no summary is generated for empty content"):
+            check.is_none(result)
 
     @pytest.mark.asyncio
+    @allure.title("Handle missing daily diff gracefully")
+    @allure.description("Verifies that days without Git diffs are handled without errors")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("orchestration", "edge-cases", "git-errors")
     async def test_summarize_one_day_no_daily_diff(
         self,
         mock_git_analyzer: MagicMock,  # pylint: disable=redefined-outer-name

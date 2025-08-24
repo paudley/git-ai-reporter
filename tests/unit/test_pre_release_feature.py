@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import allure
 import git
 import pytest
 import pytest_check as check
@@ -20,6 +21,8 @@ from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.services.gemini import GeminiClient
 
 
+@allure.feature("Pre-Release Feature")
+@allure.story("Version Release Management")
 class TestPreReleaseFeature:
     """Test suite for pre-release functionality."""
 
@@ -138,6 +141,12 @@ All notable changes to this project will be documented in this file.
 
         return client
 
+    @allure.title("Create version section in changelog during pre-release")
+    @allure.description(
+        "Verifies that pre-release flag properly creates versioned sections in CHANGELOG.txt and NEWS.md"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("pre-release", "versioning", "changelog", "news")
     def test_pre_release_creates_version_section(
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
@@ -145,11 +154,12 @@ All notable changes to this project will be documented in this file.
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that pre-release flag creates proper version section."""
-        _repo, temp_path = temp_git_repo_with_files
-        version = "1.2.3"
+        with allure.step("Setup test environment and version"):
+            _repo, temp_path = temp_git_repo_with_files
+            version = "1.2.3"
 
-        # Set up environment
-        monkeypatch.setenv("GEMINI_API_KEY", "test-api-key")
+            # Set up environment
+            monkeypatch.setenv("GEMINI_API_KEY", "test-api-key")
 
         with (
             patch("git_ai_reporter.cli.GeminiClient", return_value=mock_gemini_client),
@@ -170,13 +180,14 @@ All notable changes to this project will be documented in this file.
                 pre_release=version,
             )
 
-        # Verify CHANGELOG.txt has version section
-        changelog_path = temp_path / "CHANGELOG.txt"
-        changelog_content = changelog_path.read_text(encoding="utf-8")
+        with allure.step("Verify CHANGELOG.txt version section creation"):
+            # Verify CHANGELOG.txt has version section
+            changelog_path = temp_path / "CHANGELOG.txt"
+            changelog_content = changelog_path.read_text(encoding="utf-8")
 
-        check.is_in(
-            f"[v{version}]", changelog_content, f"Should contain version section v{version}"
-        )
+            check.is_in(
+                f"[v{version}]", changelog_content, f"Should contain version section v{version}"
+            )
 
         # Get today's date dynamically
         today = datetime.now().strftime("%Y-%m-%d")

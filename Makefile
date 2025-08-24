@@ -34,9 +34,10 @@ NC := \033[0m # No Color
 
 # Phony targets (don't correspond to actual files)
 .PHONY: help install clean format lint type-check test coverage \
-        security-scan quality-check shellcheck check-all \
-        pre-commit pre-push install-hooks run docs build \
-        venv update-deps freeze-deps
+				security-scan quality-check shellcheck check-all \
+				pre-commit pre-push install-hooks run docs build \
+				venv update-deps freeze-deps test-allure allure-report allure-serve \
+				allure-ui-up allure-ui-down allure-ui-restart allure-ui-logs allure-ui-status
 
 # Help target - displays available commands
 help:
@@ -58,6 +59,14 @@ help:
 	@echo -e "  make coverage       - Run tests with coverage report"
 	@echo -e "  make test-unit      - Run unit tests only"
 	@echo -e "  make test-integration - Run integration tests only"
+	@echo -e "  make test-allure    - Run tests and generate Allure results"
+	@echo -e "  make allure-report  - Generate and open Allure HTML report (uses Docker if CLI unavailable)"
+	@echo -e "  make allure-serve   - Start Allure development server (uses Docker if CLI unavailable)"
+	@echo -e "  make allure-ui-up   - Start Allure Docker Service + UI (recommended)"
+	@echo -e "  make allure-ui-down - Stop Allure Docker Service + UI"
+	@echo -e "  make allure-ui-restart - Restart Allure Docker Service + UI"
+	@echo -e "  make allure-ui-logs - View Allure service logs"
+	@echo -e "  make allure-ui-status - Check Allure service status"
 	@echo -e ""
 	@echo -e "$(GREEN)Quality Checks:$(NC)"
 	@echo -e "  make lint           - Run comprehensive linting"
@@ -123,6 +132,8 @@ clean:
 	@find . -type f -name "*.pyo" -delete 2>/dev/null || true
 	@find . -type f -name ".coverage" -delete 2>/dev/null || true
 	@find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name "allure-results" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name "allure-report" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
 	@echo -e "$(GREEN)✓ Cleaned$(NC)"
@@ -159,40 +170,111 @@ type-check:
 	@$(VENV_ACTIVATE) && $(UV) run mypy $(SRC_DIR) --strict
 	@echo -e "$(GREEN)✓ Type checking passed$(NC)"
 
-# Run all tests
+# Run all tests (Allure reports generated automatically)
 test:
 	@echo -e "$(BLUE)Running all tests...$(NC)"
-	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -v
+	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)
 	@echo -e "$(GREEN)✓ All tests passed$(NC)"
+	@echo -e "$(YELLOW)Allure results automatically saved to: allure-results/$(NC)"
+	@echo -e "$(YELLOW)Generate report: make allure-report$(NC)"
 
-# Run tests without coverage (faster)
+# Run tests without coverage (fast mode - Allure still generated)
 test-fast:
-	@echo -e "$(BLUE)Running tests (fast mode)...$(NC)"
+	@echo -e "$(BLUE)Running tests (fast mode - no coverage)...$(NC)"
 	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -q -q --no-cov
 	@echo -e "$(GREEN)✓ Tests passed$(NC)"
+	@echo -e "$(YELLOW)Allure results saved to: allure-results/$(NC)"
 
-# Run tests with coverage
+# Run tests with coverage (Allure generated automatically)
 coverage:
 	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
-	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR) -v \
-		--cov=$(SRC_DIR) \
-		--cov-report=term-missing \
-		--cov-report=html \
-		--cov-fail-under=$(COVERAGE_THRESHOLD)
+	@$(VENV_ACTIVATE) && $(UV) run pytest -q -q $(TEST_DIR)
 	@echo -e "$(GREEN)✓ Coverage check passed (>= $(COVERAGE_THRESHOLD)%)$(NC)"
 	@echo -e "$(YELLOW)Coverage report: open htmlcov/index.html$(NC)"
+	@echo -e "$(YELLOW)Allure results: make allure-report$(NC)"
 
-# Run unit tests only
+# Run unit tests only (Allure generated automatically)
 test-unit:
 	@echo -e "$(BLUE)Running unit tests...$(NC)"
-	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/unit -v
+	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/unit
 	@echo -e "$(GREEN)✓ Unit tests passed$(NC)"
+	@echo -e "$(YELLOW)Allure results: make allure-report$(NC)"
 
-# Run integration tests only
+# Run integration tests only (Allure generated automatically)
 test-integration:
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
-	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/integration -v
+	@$(VENV_ACTIVATE) && $(UV) run pytest $(TEST_DIR)/integration
 	@echo -e "$(GREEN)✓ Integration tests passed$(NC)"
+	@echo -e "$(YELLOW)Allure results: make allure-report$(NC)"
+
+# Run tests and generate Allure results (DEPRECATED - use 'make test' instead)
+# NOTE: This target is now identical to 'make test' since Allure is generated automatically
+test-allure: test
+	@echo -e "$(YELLOW)⚠ test-allure is deprecated - use 'make test' instead$(NC)"
+	@echo -e "$(YELLOW)Allure results are now generated automatically for all test runs$(NC)"
+
+# Generate Allure HTML report and open in browser
+allure-report:
+	@echo -e "$(BLUE)Generating Allure HTML report...$(NC)"
+	@if [ ! -d "allure-results" ] || [ -z "$$(ls -A allure-results 2>/dev/null)" ]; then \
+		echo -e "$(YELLOW)No Allure results found. Running tests first...$(NC)"; \
+		$(MAKE) --no-print-directory test-allure; \
+	fi
+	@if command -v allure >/dev/null 2>&1; then \
+		allure generate allure-results --output allure-report --clean; \
+		echo -e "$(GREEN)✓ Allure report generated$(NC)"; \
+		echo -e "$(YELLOW)Opening report in browser...$(NC)"; \
+		allure open allure-report; \
+	elif command -v docker >/dev/null 2>&1; then \
+		echo -e "$(YELLOW)Using Docker for Allure report generation...$(NC)"; \
+		docker run --rm \
+			--user $(shell id -u):$(shell id -g) \
+			-v $(PWD)/allure-results:/allure-results \
+			-v $(PWD)/allure-report:/allure-report \
+			frankescobar/allure-docker-service:latest \
+			allure generate /allure-results --output /allure-report --clean; \
+		echo -e "$(GREEN)✓ Allure report generated using Docker$(NC)"; \
+		echo -e "$(YELLOW)Report available at: allure-report/index.html$(NC)"; \
+		if command -v xdg-open >/dev/null 2>&1; then \
+			xdg-open allure-report/index.html; \
+		elif command -v open >/dev/null 2>&1; then \
+			open allure-report/index.html; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)⚠ Neither Allure CLI nor Docker found.$(NC)"; \
+		echo -e "$(YELLOW)Install options:$(NC)"; \
+		echo -e "  macOS: brew install allure"; \
+		echo -e "  Linux: Download from https://github.com/allure-framework/allure2/releases"; \
+		echo -e "  Docker: Install Docker to use frankescobar/allure-docker-service"; \
+		exit 1; \
+	fi
+
+# Start Allure development server (auto-refresh)
+allure-serve:
+	@echo -e "$(BLUE)Starting Allure development server...$(NC)"
+	@if [ ! -d "allure-results" ] || [ -z "$$(ls -A allure-results 2>/dev/null)" ]; then \
+		echo -e "$(YELLOW)No Allure results found. Running tests first...$(NC)"; \
+		$(MAKE) --no-print-directory test-allure; \
+	fi
+	@if command -v allure >/dev/null 2>&1; then \
+		echo -e "$(GREEN)Starting Allure server at http://localhost:4040$(NC)"; \
+		echo -e "$(YELLOW)Press Ctrl+C to stop the server$(NC)"; \
+		allure serve allure-results; \
+	elif command -v docker >/dev/null 2>&1; then \
+		echo -e "$(YELLOW)Using Docker for Allure server...$(NC)"; \
+		echo -e "$(GREEN)Starting Allure server at http://localhost:5050$(NC)"; \
+		echo -e "$(YELLOW)Press Ctrl+C to stop the server$(NC)"; \
+		docker run --rm \
+			--user $(shell id -u):$(shell id -g) \
+			-p 5050:5050 \
+			-v $(PWD)/allure-results:/app/allure-results \
+			-e CHECK_RESULTS_EVERY_SECONDS=3 \
+			-e KEEP_HISTORY=1 \
+			frankescobar/allure-docker-service:latest; \
+	else \
+		echo -e "$(YELLOW)⚠ Neither Allure CLI nor Docker found. See 'make allure-report' for installation instructions.$(NC)"; \
+		exit 1; \
+	fi
 
 # Security scan for secrets and vulnerabilities
 security-scan:
@@ -215,9 +297,9 @@ shellcheck:
 			echo "  Checking $$script..."; \
 			shellcheck -e SC1091 -e SC2086 -e SC2181 $$script || exit 1; \
 		done; \
-		echo "$(GREEN)✓ All shell scripts valid$(NC)"; \
+		echo -e "$(GREEN)✓ All shell scripts valid$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠ shellcheck not installed. Install with: apt-get install shellcheck$(NC)"; \
+		echo -e "$(YELLOW)⚠ shellcheck not installed. Install with: apt-get install shellcheck$(NC)"; \
 	fi
 
 # Pre-commit checks
@@ -271,58 +353,54 @@ ci: lint type-check test coverage security-scan quality-check
 # Order matters: Fast checks first, then slow checks, Docker last
 check-all:
 	@echo -e "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo -e "$(BLUE)║              RUNNING COMPREHENSIVE CHECK-ALL                ║$(NC)"
+	@echo -e "$(BLUE)║              RUNNING COMPREHENSIVE CHECK-ALL                 ║$(NC)"
 	@echo -e "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
 	@echo -e ""
 
-	@echo -e "$(BLUE)[1/9] Code Formatting Check$(NC)"
+	@echo -e "$(BLUE)[1/8] Code Formatting Check$(NC)"
 	@echo -e "$(BLUE)Checking code formatting...$(NC)"
 	@if ! $(VENV_ACTIVATE) && ruff format --check . > /dev/null 2>&1; then \
-		echo "$(YELLOW)⚠️  Code needs formatting. Running formatter...$(NC)"; \
+		echo -e "$(YELLOW)⚠️  Code needs formatting. Running formatter...$(NC)"; \
 		$(MAKE) --no-print-directory format; \
 	else \
-		echo "$(GREEN)✓ Code formatting is correct$(NC)"; \
+		echo -e "$(GREEN)✓ Code formatting is correct$(NC)"; \
 	fi
 	@echo -e ""
 
-	@echo -e "$(BLUE)[2/9] Python Linting (Full)$(NC)"
+	@echo -e "$(BLUE)[2/8] Python Linting (Full)$(NC)"
 	@$(MAKE) --no-print-directory lint
 	@echo -e ""
 
-	@echo -e "$(BLUE)[3/9] Type Checking$(NC)"
+	@echo -e "$(BLUE)[3/8] Type Checking$(NC)"
 	@$(MAKE) --no-print-directory type-check
 	@echo -e ""
 
-	@echo -e "$(BLUE)[4/9] Shell Script Validation$(NC)"
+	@echo -e "$(BLUE)[4/8] Shell Script Validation$(NC)"
 	@$(MAKE) --no-print-directory shellcheck
 	@echo -e ""
 
-	@echo -e "$(BLUE)[5/9] Security Scanning$(NC)"
+	@echo -e "$(BLUE)[5/8] Security Scanning$(NC)"
 	@$(MAKE) --no-print-directory security-scan
 	@echo -e ""
 
-	@echo -e "$(BLUE)[6/9] Quality Standards$(NC)"
+	@echo -e "$(BLUE)[6/8] Quality Standards$(NC)"
 	@$(MAKE) --no-print-directory quality-check
 	@echo -e ""
 
-	@echo -e "$(BLUE)[7/9] Fast Tests$(NC)"
-	@$(MAKE) --no-print-directory test-fast
-	@echo -e ""
-
-	@echo -e "$(BLUE)[8/9] Coverage Analysis$(NC)"
+	@echo -e "$(BLUE)[7/8] Coverage Analysis$(NC)"
 	@$(MAKE) --no-print-directory coverage
 	@echo -e ""
 
-	@echo -e "$(BLUE)[9/9] Documentation Check$(NC)"
+	@echo -e "$(BLUE)[8/8] Documentation Check$(NC)"
 	@echo -e "Checking for required documentation files..."
-	@test -f README.md || (echo "$(RED)✗ Missing README.md$(NC)" && exit 1)
-	@test -f LICENSE || (echo "$(RED)✗ Missing LICENSE$(NC)" && exit 1)
-	@test -f CLAUDE.md || (echo "$(RED)✗ Missing CLAUDE.md$(NC)" && exit 1)
+	@test -f README.md || (echo -e "$(RED)✗ Missing README.md$(NC)" && exit 1)
+	@test -f LICENSE || (echo -e "$(RED)✗ Missing LICENSE$(NC)" && exit 1)
+	@test -f CLAUDE.md || (echo -e "$(RED)✗ Missing CLAUDE.md$(NC)" && exit 1)
 	@echo -e "$(GREEN)✓ Documentation files present$(NC)"
 	@echo -e ""
 
 	@echo -e "$(GREEN)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo -e "$(GREEN)║           🎉 ALL CHECKS PASSED SUCCESSFULLY! 🎉             ║$(NC)"
+	@echo -e "$(GREEN)║           🎉 ALL CHECKS PASSED SUCCESSFULLY! 🎉              ║$(NC)"
 	@echo -e "$(GREEN)╚══════════════════════════════════════════════════════════════╝$(NC)"
 	@echo -e ""
 	@echo -e "$(YELLOW)Summary:$(NC)"
@@ -354,6 +432,112 @@ docs:
 	@echo -e "$(BLUE)Generating documentation...$(NC)"
 	@$(VENV_ACTIVATE) && $(PYTHON) -m pydoc -w $(SRC_DIR)/git_ai_reporter
 	@echo -e "$(GREEN)✓ Documentation generated$(NC)"
+
+# Allure Docker Service UI Commands
+# These commands use docker-compose to manage Allure services with proper user permissions
+
+# Start Allure Docker Service + UI (recommended for viewing reports)
+allure-ui-up:
+	@echo -e "$(BLUE)Starting Allure Docker Service + UI...$(NC)"
+	@if [ ! -d "allure-results" ] || [ -z "$$(ls -A allure-results 2>/dev/null)" ]; then \
+		echo -e "$(YELLOW)No Allure results found. Running tests first...$(NC)"; \
+		$(MAKE) --no-print-directory test-allure; \
+	fi
+	@if command -v docker >/dev/null 2>&1; then \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			echo -e "$(GREEN)Setting up Docker services with proper user permissions (docker-compose)...$(NC)"; \
+			env UID=$$(id -u) GID=$$(id -g) docker-compose up -d; \
+		elif docker compose version >/dev/null 2>&1; then \
+			echo -e "$(GREEN)Setting up Docker services with proper user permissions (docker compose)...$(NC)"; \
+			env UID=$$(id -u) GID=$$(id -g) docker compose up -d; \
+		else \
+			echo -e "$(RED)✗ Docker Compose not found$(NC)"; \
+			echo -e "$(YELLOW)Install Docker Compose to use Allure UI services$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(GREEN)✓ Allure services started successfully$(NC)"; \
+		echo -e ""; \
+		echo -e "$(BLUE)Service URLs:$(NC)"; \
+		echo -e "  📊 Allure UI (Recommended): $(YELLOW)http://localhost:5252/allure-docker-service-ui$(NC)"; \
+		echo -e "  🔧 Allure API:               $(YELLOW)http://localhost:5050$(NC)"; \
+		echo -e ""; \
+		echo -e "$(GREEN)Pro tip: Use 'make allure-ui-logs' to monitor service logs$(NC)"; \
+		echo -e "$(GREEN)Pro tip: Use 'make allure-ui-down' to stop services$(NC)"; \
+	else \
+		echo -e "$(RED)✗ Docker or docker-compose not found$(NC)"; \
+		echo -e "$(YELLOW)Install Docker to use Allure UI services$(NC)"; \
+		exit 1; \
+	fi
+
+# Stop Allure Docker Service + UI
+allure-ui-down:
+	@echo -e "$(BLUE)Stopping Allure Docker Service + UI...$(NC)"
+	@if command -v docker >/dev/null 2>&1; then \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			docker-compose down; \
+		elif docker compose version >/dev/null 2>&1; then \
+			docker compose down; \
+		else \
+			echo -e "$(YELLOW)⚠ Docker Compose not found$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(GREEN)✓ Allure services stopped$(NC)"; \
+	else \
+		echo -e "$(YELLOW)⚠ Docker not found$(NC)"; \
+	fi
+
+# Restart Allure Docker Service + UI
+allure-ui-restart: allure-ui-down allure-ui-up
+	@echo -e "$(GREEN)✓ Allure services restarted$(NC)"
+
+# View Allure service logs
+allure-ui-logs:
+	@echo -e "$(BLUE)Viewing Allure service logs...$(NC)"
+	@echo -e "$(YELLOW)Press Ctrl+C to stop following logs$(NC)"
+	@if command -v docker >/dev/null 2>&1; then \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			docker-compose logs -f; \
+		elif docker compose version >/dev/null 2>&1; then \
+			docker compose logs -f; \
+		else \
+			echo -e "$(YELLOW)⚠ Docker Compose not found$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)⚠ Docker not found$(NC)"; \
+	fi
+
+# Check Allure service status
+allure-ui-status:
+	@echo -e "$(BLUE)Checking Allure service status...$(NC)"
+	@if command -v docker >/dev/null 2>&1; then \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			COMPOSE_CMD="docker-compose"; \
+		elif docker compose version >/dev/null 2>&1; then \
+			COMPOSE_CMD="docker compose"; \
+		else \
+			echo -e "$(YELLOW)⚠ Docker Compose not found$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(BLUE)Container Status:$(NC)"; \
+		$$COMPOSE_CMD ps; \
+		echo -e ""; \
+		echo -e "$(BLUE)Health Checks:$(NC)"; \
+		if $$COMPOSE_CMD ps | grep -q "Up (healthy)"; then \
+			echo -e "$(GREEN)✓ Services are running and healthy$(NC)"; \
+			echo -e ""; \
+			echo -e "$(BLUE)Quick Access:$(NC)"; \
+			echo -e "  📊 Allure UI: $(YELLOW)http://localhost:5252/allure-docker-service-ui$(NC)"; \
+			echo -e "  🔧 Allure API: $(YELLOW)http://localhost:5050$(NC)"; \
+		elif $$COMPOSE_CMD ps | grep -q "Up"; then \
+			echo -e "$(YELLOW)⚠ Services are starting up...$(NC)"; \
+			echo -e "$(YELLOW)Wait a moment and check again$(NC)"; \
+		else \
+			echo -e "$(RED)✗ Services are not running$(NC)"; \
+			echo -e "$(YELLOW)Use 'make allure-ui-up' to start services$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)⚠ Docker not found$(NC)"; \
+	fi
 
 # Development shortcuts
 .PHONY: f l t c

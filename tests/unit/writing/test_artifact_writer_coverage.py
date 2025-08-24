@@ -9,6 +9,7 @@ from pathlib import Path
 
 import aiofiles
 import aiofiles.os
+import allure
 import pytest
 import pytest_check as check
 from rich.console import Console
@@ -29,17 +30,24 @@ def artifact_writer(tmp_path: Path) -> ArtifactWriter:
     )
 
 
+@allure.epic("Test Coverage")
+@allure.feature("Artifact Writer Coverage")
+@allure.story("Historical Summaries Operations")
 class TestHistoricalSummariesCoverage:
     """Tests for historical summaries reading to achieve full coverage."""
 
+    @allure.title("Read historical summaries with daily updates")
+    @allure.description("Tests reading historical summaries that combines NEWS and daily updates")
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("artifact-writer", "historical-summaries", "news-file", "daily-updates")
     @pytest.mark.asyncio
     async def test_read_historical_summaries_with_daily_updates(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test reading historical summaries with daily updates in the previous week."""
-        # Create NEWS.md
-        news_content = """# Development News
+        with allure.step("Create NEWS.md with weekly summaries"):
+            news_content = """# Development News
 
 ## Week of 2024-12-23 to 2024-12-29
 
@@ -49,11 +57,11 @@ First week summary.
 
 Second week summary.
 """
-        async with aiofiles.open(artifact_writer.news_path, "w", encoding="utf-8") as f:
-            await f.write(news_content)
+            async with aiofiles.open(artifact_writer.news_path, "w", encoding="utf-8") as f:
+                await f.write(news_content)
 
-        # Create DAILY_UPDATES.md with daily summaries
-        daily_content = """# Daily Development Updates
+        with allure.step("Create DAILY_UPDATES.md with daily summaries"):
+            daily_content = """# Daily Development Updates
 
 ### 2024-12-25
 
@@ -71,35 +79,41 @@ New year prep work.
 
 New year's day coding.
 """
-        async with aiofiles.open(artifact_writer.daily_updates_path, "w", encoding="utf-8") as f:
-            await f.write(daily_content)
+            async with aiofiles.open(
+                artifact_writer.daily_updates_path, "w", encoding="utf-8"
+            ) as f:
+                await f.write(daily_content)
 
-        history = (
-            await artifact_writer._read_historical_summaries()
-        )  # pylint: disable=protected-access
+        with allure.step("Read historical summaries"):
+            history = (
+                await artifact_writer._read_historical_summaries()
+            )  # pylint: disable=protected-access
 
-        # Should include both NEWS summaries and relevant daily summaries
-        check.is_in("## Recent Weekly Summaries", history)
-        check.is_in("First week summary", history)
-        check.is_in("Second week summary", history)
+        with allure.step("Verify NEWS summaries are included"):
+            check.is_in("## Recent Weekly Summaries", history)
+            check.is_in("First week summary", history)
+            check.is_in("Second week summary", history)
 
-        # Should include daily summaries
-        check.is_in("## Recent Daily Updates", history)
-        check.is_in("Boxing day development", history)
-        check.is_in("New year prep work", history)
-        check.is_in("New year's day coding", history)
+        with allure.step("Verify daily summaries are included"):
+            check.is_in("## Recent Daily Updates", history)
+            check.is_in("Boxing day development", history)
+            check.is_in("New year prep work", history)
+            check.is_in("New year's day coding", history)
+            # Current implementation includes all daily updates (first 1000 chars)
+            check.is_in("Christmas day work", history)
 
-        # Current implementation includes all daily updates (first 1000 chars)
-        check.is_in("Christmas day work", history)
-
+    @allure.title("Handle changelog merging with existing sections")
+    @allure.description("Tests merging new changelog entries with existing sections")
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("artifact-writer", "changelog", "merging", "section-handling")
     @pytest.mark.asyncio
     async def test_update_changelog_file_error_handling(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test error handling when updating changelog file."""
-        # Create existing CHANGELOG.txt
-        changelog_content = """# Changelog
+        with allure.step("Create existing CHANGELOG.txt with New Feature section"):
+            changelog_content = """# Changelog
 
 ## [Unreleased]
 
@@ -110,190 +124,229 @@ New year's day coding.
 ### ✨ New Feature
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
-            await f.write(changelog_content)
+            async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
+                await f.write(changelog_content)
 
-        # Update with new changelog that has an New Feature section
-        new_changelog = """### ✨ New Feature
+        with allure.step("Update with new changelog entries including New Feature section"):
+            new_changelog = """### ✨ New Feature
 - New feature 1
 - New feature 2
 
 ### 🐛 Bug Fix
 - Bug fix 1
 """
+            await artifact_writer.update_changelog_file(new_changelog)
 
-        await artifact_writer.update_changelog_file(new_changelog)
+        with allure.step("Verify sections were properly merged"):
+            async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
+                updated_content = await f.read()
 
-        # Read the updated file
-        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
-            updated_content = await f.read()
+            check.is_in("- Existing feature", updated_content)
+            check.is_in("- New feature 1", updated_content)
+            check.is_in("- New feature 2", updated_content)
+            check.is_in("- Bug fix 1", updated_content)
 
-        # Should merge the Added sections
-        check.is_in("- Existing feature", updated_content)
-        check.is_in("- New feature 1", updated_content)
-        check.is_in("- New feature 2", updated_content)
-        check.is_in("- Bug fix 1", updated_content)
-
+    @allure.title("Handle missing [Unreleased] section gracefully")
+    @allure.description(
+        "Tests that updating changelog without [Unreleased] section fails gracefully"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "changelog", "error-handling", "missing-section")
     @pytest.mark.asyncio
     async def test_update_changelog_no_existing_unreleased(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test updating changelog when there's no [Unreleased] section."""
-        # Create CHANGELOG.txt without [Unreleased]
-        changelog_content = """# Changelog
+        with allure.step("Create CHANGELOG.txt without [Unreleased] section"):
+            changelog_content = """# Changelog
 
 ## [1.0.0] - 2024-01-01
 ### Added
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
-            await f.write(changelog_content)
+            async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
+                await f.write(changelog_content)
 
-        new_changelog = """### Added
+        with allure.step("Attempt to update changelog without Unreleased section"):
+            new_changelog = """### Added
 - New feature
 """
+            await artifact_writer.update_changelog_file(new_changelog)
 
-        await artifact_writer.update_changelog_file(new_changelog)
+        with allure.step("Verify original content preserved, new content not added"):
+            async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
+                updated_content = await f.read()
 
-        # Read the updated file
-        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
-            updated_content = await f.read()
+            # When there's no [Unreleased] section, it should remain unchanged
+            # because the function prints an error and returns early
+            check.is_in("## [1.0.0]", updated_content)
+            check.is_in("- Initial release", updated_content)
+            check.is_not_in("- New feature", updated_content)
 
-        # When there's no [Unreleased] section, it should remain unchanged
-        # because the function prints an error and returns early
-        check.is_in("## [1.0.0]", updated_content)
-        check.is_in("- Initial release", updated_content)
-        check.is_not_in("- New feature", updated_content)
-
+    @allure.title("Create NEWS.md file for the first time")
+    @allure.description("Tests creating NEWS.md file from scratch with proper structure")
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("artifact-writer", "news-file", "file-creation", "first-time")
     @pytest.mark.asyncio
     async def test_update_news_file_first_time(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test creating NEWS.md for the first time."""
-        narrative = "This week we made great progress on the project."
-        start_date = datetime(2025, 1, 1)
-        end_date = datetime(2025, 1, 7)
+        with allure.step("Prepare news file parameters"):
+            narrative = "This week we made great progress on the project."
+            start_date = datetime(2025, 1, 1)
+            end_date = datetime(2025, 1, 7)
+            params = NewsFileParams(narrative=narrative, start_date=start_date, end_date=end_date)
 
-        params = NewsFileParams(narrative=narrative, start_date=start_date, end_date=end_date)
-        await artifact_writer.update_news_file(params)
+        with allure.step("Update news file for first time"):
+            await artifact_writer.update_news_file(params)
 
-        # Check the file was created
-        async with aiofiles.open(artifact_writer.news_path, "r", encoding="utf-8") as f:
-            content = await f.read()
+        with allure.step("Verify news file was created with correct structure and content"):
+            async with aiofiles.open(artifact_writer.news_path, "r", encoding="utf-8") as f:
+                content = await f.read()
 
-        check.is_in("# Project News", content)
-        check.is_in("## Week 1: January 01 - January 07, 2025", content)
-        check.is_in("This week we made great progress", content)
+            check.is_in("# Project News", content)
+            check.is_in("## Week 1: January 01 - January 07, 2025", content)
+            check.is_in("This week we made great progress", content)
 
+    @allure.title("Create news file with missing parent directory")
+    @allure.description(
+        "Tests that updating news file creates parent directory if it doesn't exist"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "news-file", "directory-creation", "path-handling")
     @pytest.mark.asyncio
     async def test_update_news_file_with_missing_directory(self, tmp_path: Path) -> None:
         """Test updating news file when directory doesn't exist."""
-        console = Console()
-        nested_path = tmp_path / "nonexistent" / "NEWS.md"
+        with allure.step("Create writer with nested path in nonexistent directory"):
+            console = Console()
+            nested_path = tmp_path / "nonexistent" / "NEWS.md"
+            writer = ArtifactWriter(
+                news_file=str(nested_path),
+                changelog_file=str(tmp_path / "CHANGELOG.txt"),
+                daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
+                console=console,
+            )
 
-        writer = ArtifactWriter(
-            news_file=str(nested_path),
-            changelog_file=str(tmp_path / "CHANGELOG.txt"),
-            daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
-            console=console,
-        )
+        with allure.step("Prepare news parameters for nested path"):
+            narrative = "Test narrative"
+            start_date = datetime(2025, 1, 1)
+            end_date = datetime(2025, 1, 7)
+            params = NewsFileParams(narrative=narrative, start_date=start_date, end_date=end_date)
 
-        narrative = "Test narrative"
-        start_date = datetime(2025, 1, 1)
-        end_date = datetime(2025, 1, 7)
+        with allure.step("Update news file, creating directory as needed"):
+            await writer.update_news_file(params)
 
-        params = NewsFileParams(narrative=narrative, start_date=start_date, end_date=end_date)
+        with allure.step("Verify file and directory were created with correct content"):
+            check.is_true(nested_path.exists())
+            content = nested_path.read_text(encoding="utf-8")
+            check.is_in("Test narrative", content)
 
-        # This should create the directory and file
-        await writer.update_news_file(params)
-
-        # Check the file was created
-        check.is_true(nested_path.exists())
-        content = nested_path.read_text(encoding="utf-8")
-        check.is_in("Test narrative", content)
-
+    @allure.title("Create changelog with missing parent directory")
+    @allure.description(
+        "Tests that updating changelog creates parent directory and initial structure"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "changelog", "directory-creation", "initialization")
     @pytest.mark.asyncio
     async def test_update_changelog_with_missing_directory(self, tmp_path: Path) -> None:
         """Test updating changelog when directory doesn't exist."""
-        console = Console()
-        nested_path = tmp_path / "nonexistent" / "CHANGELOG.txt"
+        with allure.step("Create writer with changelog in nonexistent directory"):
+            console = Console()
+            nested_path = tmp_path / "nonexistent" / "CHANGELOG.txt"
+            writer = ArtifactWriter(
+                news_file=str(tmp_path / "NEWS.md"),
+                changelog_file=str(nested_path),
+                daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
+                console=console,
+            )
 
-        writer = ArtifactWriter(
-            news_file=str(tmp_path / "NEWS.md"),
-            changelog_file=str(nested_path),
-            daily_updates_file=str(tmp_path / "DAILY_UPDATES.md"),
-            console=console,
-        )
-
-        new_changelog = """### ✨ New Feature
+        with allure.step("Prepare new changelog content"):
+            new_changelog = """### ✨ New Feature
 - New feature for testing
 """
 
-        # This should create the directory and initial changelog structure
-        await writer.update_changelog_file(new_changelog)
+        with allure.step("Update changelog, creating directory and initial structure"):
+            await writer.update_changelog_file(new_changelog)
 
-        # Check the file was created
-        check.is_true(nested_path.exists())
-        content = nested_path.read_text(encoding="utf-8")
-        check.is_in("# Changelog", content)
-        check.is_in("## [Unreleased]", content)
-        # The artifact writer formats new entries under appropriate categories
-        check.is_in("New feature for testing", content)
+        with allure.step("Verify changelog file created with proper structure"):
+            check.is_true(nested_path.exists())
+            content = nested_path.read_text(encoding="utf-8")
+            check.is_in("# Changelog", content)
+            check.is_in("## [Unreleased]", content)
+            check.is_in("New feature for testing", content)
 
+    @allure.title("Create daily updates with missing parent directory")
+    @allure.description(
+        "Tests that updating daily updates creates parent directory and file structure"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "daily-updates", "directory-creation", "initialization")
     @pytest.mark.asyncio
     async def test_update_daily_updates_with_missing_directory(self, tmp_path: Path) -> None:
         """Test updating daily updates when directory doesn't exist."""
-        console = Console()
-        nested_path = tmp_path / "nonexistent" / "DAILY_UPDATES.md"
+        with allure.step("Create writer with daily updates in nonexistent directory"):
+            console = Console()
+            nested_path = tmp_path / "nonexistent" / "DAILY_UPDATES.md"
+            writer = ArtifactWriter(
+                news_file=str(tmp_path / "NEWS.md"),
+                changelog_file=str(tmp_path / "CHANGELOG.txt"),
+                daily_updates_file=str(nested_path),
+                console=console,
+            )
 
-        writer = ArtifactWriter(
-            news_file=str(tmp_path / "NEWS.md"),
-            changelog_file=str(tmp_path / "CHANGELOG.txt"),
-            daily_updates_file=str(nested_path),
-            console=console,
-        )
+        with allure.step("Prepare daily summaries"):
+            daily_summaries = [
+                "### 2025-01-01\n\nFirst day summary",
+                "### 2025-01-02\n\nSecond day summary",
+            ]
 
-        daily_summaries = [
-            "### 2025-01-01\n\nFirst day summary",
-            "### 2025-01-02\n\nSecond day summary",
-        ]
+        with allure.step("Update daily updates file, creating directory as needed"):
+            await writer.update_daily_updates_file(daily_summaries)
 
-        # This should create the directory and file
-        await writer.update_daily_updates_file(daily_summaries)
+        with allure.step("Verify daily updates file created with correct content"):
+            check.is_true(nested_path.exists())
+            content = nested_path.read_text(encoding="utf-8")
+            check.is_in("# Daily Updates", content)
+            check.is_in("### 2025-01-01", content)
+            check.is_in("First day summary", content)
 
-        # Check the file was created
-        check.is_true(nested_path.exists())
-        content = nested_path.read_text(encoding="utf-8")
-        check.is_in("# Daily Updates", content)
-        check.is_in("### 2025-01-01", content)
-        check.is_in("First day summary", content)
-
+    @allure.title("Verify file path properties return correct values")
+    @allure.description("Tests that artifact writer path properties return proper Path objects")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "properties", "path-handling", "validation")
     @pytest.mark.asyncio
     async def test_file_path_properties(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test that path properties return correct values."""
-        # These properties should return Path objects
-        check.is_instance(artifact_writer.news_path, Path)
-        check.is_instance(artifact_writer.changelog_path, Path)
-        check.is_instance(artifact_writer.daily_updates_path, Path)
+        with allure.step("Verify path properties return Path objects"):
+            check.is_instance(artifact_writer.news_path, Path)
+            check.is_instance(artifact_writer.changelog_path, Path)
+            check.is_instance(artifact_writer.daily_updates_path, Path)
 
-        # Verify they contain expected filenames
-        check.is_in("NEWS.md", str(artifact_writer.news_path))
-        check.is_in("CHANGELOG.txt", str(artifact_writer.changelog_path))
-        check.is_in("DAILY_UPDATES.md", str(artifact_writer.daily_updates_path))
+        with allure.step("Verify path properties contain expected filenames"):
+            check.is_in("NEWS.md", str(artifact_writer.news_path))
+            check.is_in("CHANGELOG.txt", str(artifact_writer.changelog_path))
+            check.is_in("DAILY_UPDATES.md", str(artifact_writer.daily_updates_path))
 
+    @allure.title("Handle empty changelog entries gracefully")
+    @allure.description(
+        "Tests that updating changelog with empty string preserves existing content"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("artifact-writer", "changelog", "empty-input", "edge-cases")
     @pytest.mark.asyncio
     async def test_empty_changelog_entries(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test updating changelog with empty entries."""
-        # Create initial changelog
-        initial_content = """# Changelog
+        with allure.step("Create initial changelog with existing content"):
+            initial_content = """# Changelog
 
 ## [Unreleased]
 
@@ -301,16 +354,16 @@ New year's day coding.
 ### Added
 - Initial release
 """
-        async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
-            await f.write(initial_content)
+            async with aiofiles.open(artifact_writer.changelog_path, "w", encoding="utf-8") as f:
+                await f.write(initial_content)
 
-        # Update with empty string
-        await artifact_writer.update_changelog_file("")
+        with allure.step("Update changelog with empty string"):
+            await artifact_writer.update_changelog_file("")
 
-        # Read back the content - should be unchanged
-        async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
-            content = await f.read()
+        with allure.step("Verify existing content is preserved unchanged"):
+            async with aiofiles.open(artifact_writer.changelog_path, "r", encoding="utf-8") as f:
+                content = await f.read()
 
-        check.is_in("## [Unreleased]", content)
-        check.is_in("## [1.0.0]", content)
-        check.is_in("- Initial release", content)
+            check.is_in("## [Unreleased]", content)
+            check.is_in("## [1.0.0]", content)
+            check.is_in("- Initial release", content)

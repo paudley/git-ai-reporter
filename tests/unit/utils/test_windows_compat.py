@@ -15,6 +15,7 @@ import time
 from typing import Final
 import warnings
 
+import allure
 import git
 import pytest
 import pytest_check as check
@@ -30,16 +31,26 @@ CAFE_TEXT: Final[str] = "Café"
 ASCII_ENCODINGS: Final[frozenset[str]] = frozenset(["ascii", "cp1252"])
 
 
+@allure.feature("Utils - Windows File Handling")
+@allure.story("Cross-Platform File Operations")
 class TestWindowsFileHandling:
     """Test Windows-specific file handling issues."""
 
+    @allure.title("Clean up temporary Git repositories on Windows")
+    @allure.description(
+        "Verifies that temporary directories containing Git repositories can be properly cleaned up on Windows systems"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("windows", "file-cleanup", "git", "temp-directories")
     def test_temp_directory_cleanup_with_git_repo(self) -> None:
         """Test that temp directories with Git repos clean up properly on Windows."""
-        temp_path = Path(tempfile.mkdtemp())
+        with allure.step("Create temporary directory and Git repository"):
+            temp_path = Path(tempfile.mkdtemp())
 
         try:
-            # Create a Git repository in the temp directory
-            repo = git.Repo.init(temp_path)
+            with allure.step("Initialize Git repository with configuration"):
+                # Create a Git repository in the temp directory
+                repo = git.Repo.init(temp_path)
             config_writer = repo.config_writer()
             try:
                 config_writer.set_value("user", "name", "Test User")
@@ -47,18 +58,20 @@ class TestWindowsFileHandling:
             finally:
                 config_writer.release()
 
-            # Create and commit a file
-            test_file = temp_path / "test.txt"
-            test_file.write_text("Test content", encoding="utf-8")
-            repo.index.add(["test.txt"])
-            repo.index.commit("Test commit")
+            with allure.step("Create and commit test file"):
+                # Create and commit a file
+                test_file = temp_path / "test.txt"
+                test_file.write_text("Test content", encoding="utf-8")
+                repo.index.add(["test.txt"])
+                repo.index.commit("Test commit")
 
-            # Close the repo to release locks
-            repo.close()
+            with allure.step("Close repository and test cleanup"):
+                # Close the repo to release locks
+                repo.close()
 
-            # Test that our cleanup function works
-            check.is_true(temp_path.exists())
-            safe_cleanup_on_windows(temp_path)
+                # Test that our cleanup function works
+                check.is_true(temp_path.exists())
+                safe_cleanup_on_windows(temp_path)
 
             # On Windows, we allow cleanup to fail gracefully
             if os.name != WINDOWS_OS_NAME:
@@ -193,27 +206,37 @@ class TestWindowsFileHandling:
                 warnings.warn(f"Encoding test cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
+@allure.feature("Utils - Windows Path Handling")
+@allure.story("Cross-Platform Path Operations")
 class TestWindowsPathHandling:
     """Test Windows-specific path handling issues."""
 
+    @allure.title("Ensure consistent path serialization across platforms")
+    @allure.description(
+        "Verifies that file paths are serialized consistently using POSIX format across different operating systems"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("windows", "paths", "serialization", "cross-platform")
     def test_path_serialization_consistency(self) -> None:
         """Test that paths are serialized consistently across platforms."""
-        # Test various path types
-        paths = [
-            Path("/home/user/file.txt"),
-            Path("relative/path/file.txt"),
-            Path("./current/file.txt"),
-            Path("../parent/file.txt"),
-        ]
+        with allure.step("Create various path types for testing"):
+            # Test various path types
+            paths = [
+                Path("/home/user/file.txt"),
+                Path("relative/path/file.txt"),
+                Path("./current/file.txt"),
+                Path("../parent/file.txt"),
+            ]
 
         # Only test Windows paths on Windows to avoid cross-platform issues
         if os.name == WINDOWS_OS_NAME:
             paths.append(Path("C:\\Users\\User\\file.txt"))
 
-        for path in paths:
-            # Test as_posix() for cross-platform consistency
-            posix_path = path.as_posix()
-            check.is_instance(posix_path, str)
+        with allure.step("Test POSIX path conversion for consistency"):
+            for path in paths:
+                # Test as_posix() for cross-platform consistency
+                posix_path = path.as_posix()
+                check.is_instance(posix_path, str)
 
             # Only check for backslashes if we're not on the current platform
             # where the path might legitimately contain backslashes
@@ -255,21 +278,31 @@ class TestWindowsPathHandling:
                 warnings.warn(f"Temp path cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
+@allure.feature("Utils - Concurrent File Access")
+@allure.story("Windows File Locking Prevention")
 class TestConcurrentFileAccess:
     """Test concurrent file access patterns that can cause Windows issues."""
 
+    @allure.title("Handle rapid file operations without locking")
+    @allure.description(
+        "Verifies that rapid file creation and deletion operations don't cause Windows file locking issues"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("windows", "file-locking", "concurrent-access", "rapid-operations")
     def test_rapid_file_creation_and_deletion(self) -> None:
         """Test rapid file creation and deletion that can cause Windows locking issues."""
-        temp_path = Path(tempfile.mkdtemp())
+        with allure.step("Setup temporary directory for rapid operations"):
+            temp_path = Path(tempfile.mkdtemp())
 
         try:
-            files_created = []
+            with allure.step("Rapidly create multiple files"):
+                files_created = []
 
-            # Rapidly create files
-            for i in range(10):
-                test_file = temp_path / f"rapid_{i}.txt"
-                test_file.write_text(f"Content {i}", encoding="utf-8")
-                files_created.append(test_file)
+                # Rapidly create files
+                for i in range(10):
+                    test_file = temp_path / f"rapid_{i}.txt"
+                    test_file.write_text(f"Content {i}", encoding="utf-8")
+                    files_created.append(test_file)
 
                 # Small delay to simulate real usage
                 time.sleep(0.01)
@@ -278,17 +311,18 @@ class TestConcurrentFileAccess:
             for test_file in files_created:
                 check.is_true(test_file.exists())
 
-            # Rapidly delete files
-            for test_file in files_created:
-                if test_file.exists():
-                    try:
-                        test_file.unlink()
-                    except PermissionError as e:
-                        # On Windows, files might be locked briefly
+            with allure.step("Rapidly delete files with Windows compatibility"):
+                # Rapidly delete files
+                for test_file in files_created:
+                    if test_file.exists():
+                        try:
+                            test_file.unlink()
+                        except PermissionError as e:
+                            # On Windows, files might be locked briefly
 
-                        warnings.warn(f"File locked, retrying: {e}", UserWarning, stacklevel=2)
-                        time.sleep(0.1)
-                        test_file.unlink()
+                            warnings.warn(f"File locked, retrying: {e}", UserWarning, stacklevel=2)
+                            time.sleep(0.1)
+                            test_file.unlink()
 
         finally:
             try:
@@ -348,16 +382,26 @@ class TestConcurrentFileAccess:
                     )
 
 
+@allure.feature("Utils - Windows Specific Issues")
+@allure.story("Windows Error Prevention")
 class TestWindowsSpecificIssues:
     """Test specific Windows issues that have been encountered."""
 
+    @allure.title("Prevent WinError 32 file locking issues")
+    @allure.description(
+        "Verifies that proper resource cleanup prevents WinError 32 (file in use by another process)"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("windows", "winerror-32", "file-locking", "resource-cleanup")
     def test_winerror_32_prevention(self) -> None:
         """Test prevention of WinError 32 (file in use by another process)."""
-        temp_path = Path(tempfile.mkdtemp())
+        with allure.step("Setup scenario that could cause WinError 32"):
+            temp_path = Path(tempfile.mkdtemp())
 
         try:
-            # Simulate the pattern that causes WinError 32
-            repo = git.Repo.init(temp_path)
+            with allure.step("Create Git repository that could lock files"):
+                # Simulate the pattern that causes WinError 32
+                repo = git.Repo.init(temp_path)
             config_writer = repo.config_writer()
             try:
                 config_writer.set_value("user", "name", "Test User")
@@ -371,18 +415,20 @@ class TestWindowsSpecificIssues:
             repo.index.add(["test.txt"])
             repo.index.commit("Test commit")
 
-            # The key is to properly close the repo before cleanup
-            repo.close()
+            with allure.step("Perform proper cleanup to prevent file locking"):
+                # The key is to properly close the repo before cleanup
+                repo.close()
 
-            # Force garbage collection to release any lingering references
-            gc.collect()
+                # Force garbage collection to release any lingering references
+                gc.collect()
 
             # Small delay to let Windows release file locks
             if os.name == WINDOWS_OS_NAME:
                 time.sleep(0.1)
 
-            # Test that cleanup works without WinError 32
-            safe_cleanup_on_windows(temp_path)
+            with allure.step("Verify cleanup succeeds without WinError 32"):
+                # Test that cleanup works without WinError 32
+                safe_cleanup_on_windows(temp_path)
 
         finally:
             try:
@@ -422,21 +468,30 @@ class TestWindowsSpecificIssues:
                 warnings.warn(f"Long path test cleanup failed: {e}", UserWarning, stacklevel=2)
 
 
+@allure.title("Verify test fixture compatibility across platforms")
+@allure.description(
+    "Ensures that test fixtures work correctly on both Windows and Unix-like systems"
+)
+@allure.severity(allure.severity_level.MINOR)
+@allure.tag("fixtures", "cross-platform", "compatibility")
 def test_fixture_compatibility() -> None:
     """Test that our fixtures work correctly across platforms."""
-    # This test uses the actual fixtures from conftest.py
-    # to verify they work without issues
+    with allure.step("Test fixture functionality manually"):
+        # This test uses the actual fixtures from conftest.py
+        # to verify they work without issues
 
-    # Test temp_dir fixture manually
-    temp_path = Path(tempfile.mkdtemp())
+        # Test temp_dir fixture manually
+        temp_path = Path(tempfile.mkdtemp())
     try:
-        check.is_true(temp_path.exists())
-        check.is_true(temp_path.is_dir())
+        with allure.step("Verify fixture creates proper directory structure"):
+            check.is_true(temp_path.exists())
+            check.is_true(temp_path.is_dir())
 
-        # Create a test file
-        test_file = temp_path / "fixture_test.txt"
-        test_file.write_text("Fixture test content", encoding="utf-8")
-        check.is_true(test_file.exists())
+        with allure.step("Create test file and verify functionality"):
+            # Create a test file
+            test_file = temp_path / "fixture_test.txt"
+            test_file.write_text("Fixture test content", encoding="utf-8")
+            check.is_true(test_file.exists())
 
     finally:
         safe_cleanup_on_windows(temp_path)

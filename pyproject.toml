@@ -5,41 +5,40 @@ description = "AI-Driven Git Repository Analysis and Narrative Generation."
 readme = "README.md"
 license = { text = "MIT" }  # SPDX-License-Identifier: MIT
 authors = [
-    { name = "Blackcat Informatics® Inc.", email = "paudley@blackcat.ca" }
+		{ name = "Blackcat Informatics® Inc.", email = "paudley@blackcat.ca" }
 ]
 maintainers = [
-    { name = "Patrick Audley", email = "paudley@blackcat.ca" }
+		{ name = "Patrick Audley", email = "paudley@blackcat.ca" }
 ]
 requires-python = ">=3.12"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Version Control :: Git",
-    "Topic :: Software Development :: Documentation",
-    "Topic :: Text Processing :: Linguistic",
-    "Typing :: Typed",
+		"Development Status :: 4 - Beta",
+		"Intended Audience :: Developers",
+		"License :: OSI Approved :: MIT License",
+		"Operating System :: OS Independent",
+		"Programming Language :: Python :: 3 :: Only",
+		"Programming Language :: Python :: 3.12",
+		"Programming Language :: Python :: 3.13",
+		"Topic :: Software Development :: Version Control :: Git",
+		"Topic :: Software Development :: Documentation",
+		"Topic :: Text Processing :: Linguistic",
+		"Typing :: Typed",
 ]
 keywords = ["git", "changelog", "release-notes", "ai", "gemini", "documentation"]
 
 dependencies = [
-    "aiofiles>=23.2.1",
-    "gitpython>=3.1.45",
-    "google-genai>=1.28.0",
-    "httpx>=0.27.0",
-    "json-repair>=0.14.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.10.1",
-    "python-dotenv>=1.1.1",
-    "rich>=14.1.0",
-    "tenacity>=8.5.0",
-    "tolerantjson>=1.0.0",
-    "typer>=0.16.0",
-    "types-setuptools>=80.9.0.20250801",
+		"aiofiles>=23.2.1",
+		"gitpython>=3.1.45",
+		"google-genai>=1.28.0",
+		"httpx>=0.27.0",
+		"json-repair>=0.14.0",
+		"pydantic-settings>=2.10.1",
+		"pydantic>=2.0.0",
+		"python-dotenv>=1.1.1",
+		"rich>=14.1.0",
+		"tenacity>=8.5.0",
+		"tolerantjson>=1.0.0",
+		"typer>=0.16.0",
 ]
 
 [project.urls]
@@ -51,7 +50,6 @@ Documentation = "https://github.com/paudley/git-ai-reporter#readme"
 [project.scripts]
 git-ai-reporter = "git_ai_reporter.cli:APP"
 
-
 [build-system]
 requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"
@@ -61,19 +59,19 @@ path = "src/git_ai_reporter/__init__.py"
 
 [tool.hatch.build]
 include = [
-    "src/git_ai_reporter",
-    "README.md",
-    "LICENSE",
-    "NOTICE",
-    "pyproject.toml",
+		"src/git_ai_reporter",
+		"README.md",
+		"LICENSE",
+		"NOTICE",
+		"pyproject.toml",
 ]
 exclude = [
-    "*.pyc",
-    "__pycache__",
-    ".git",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
+		"*.pyc",
+		"__pycache__",
+		".git",
+		".pytest_cache",
+		".mypy_cache",
+		".ruff_cache",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -81,44 +79,49 @@ packages = ["src/git_ai_reporter"]
 
 [dependency-groups]
 dev = [
-    "autopep8>=2.3.2",
-    "bandit[baseline,toml,sarif]>=1.8.6",
-    "black>=25.1.0",
-    "flake8>=7.3.0",
-    "isort>=6.0.1",
-    "markdown>=3.8.2",
-    "mypy>=1.17.1",
-    "mypy-extensions>=1.1.0",
-    "pycodestyle>=2.14.0",
-    "pyflakes>=3.4.0",
-    "pylint>=3.3.7",
-    "pylint-htmf>=0.1.1",
-    "pylint-plugin-utils>=0.9.0",
-    "pylint-pydantic>=0.3.5",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.1.0",
-    "pytest-bdd>=7.4.0",
-    "pytest-check>=2.4.1",
-    "pytest-cov>=5.0.0",
-    "pytest-random-order>=1.1.2",
-    "pytest-recording>=0.13.1",
-    "pytest-snapshot>=0.9.0",
-    "pytest-sugar>=1.0.0",
-    "pytest-timeout>=2.3.2",
-    "pytest-xdist>=3.7.0",
-    "ruff>=0.12.10",
-    "hypothesis>=6.132.1",
-    "types-aiofiles>=23.10.0.20240106",
-    "types-markdown>=3.8.0.20250708",
-    "types-python-dateutil>=2.9.0.20250708",
-    "types-pyyaml>=6.0.12.20250516",
-    "types-regex>=2024.11.6.20250403",
-    "typing-extensions>=4.14.1",
-    "typing-inspection>=0.4.1",
-    "uv>=0.8.4",
-    "vulture>=2.14",
-    "bs4>=0.0.2",
-    "twine>=6.1.0",
+		"allure-pytest-bdd>=2.15.0",
+		"allure-pytest>=2.15.0",
+		"autopep8>=2.3.2",
+		"bandit[baseline,toml,sarif]>=1.8.6",
+		"black>=25.1.0",
+		"bs4>=0.0.2",
+		"flake8-builtins>=3.0.0",
+		"flake8>=7.3.0",
+		"hypothesis>=6.132.1",
+		"isort>=6.0.1",
+		"markdown>=3.8.2",
+		"mypy-extensions>=1.1.0",
+		"mypy>=1.17.1",
+		"pycodestyle>=2.14.0",
+		"pyflakes>=3.4.0",
+		"pylint-htmf>=0.1.1",
+		"pylint-plugin-utils>=0.9.0",
+		"pylint-pydantic>=0.3.5",
+		"pylint>=3.3.7",
+		"pyright>=1.1.404",
+		"pytest-asyncio>=1.1.0",
+		"pytest-bdd>=7.4.0",
+		"pytest-check>=2.4.1",
+		"pytest-cov>=5.0.0",
+		"pytest-random-order>=1.1.2",
+		"pytest-recording>=0.13.1",
+		"pytest-snapshot>=0.9.0",
+		"pytest-sugar>=1.0.0",
+		"pytest-timeout>=2.3.2",
+		"pytest-xdist>=3.7.0",
+		"pytest>=8.4.1",
+		"ruff>=0.12.10",
+		"twine>=6.1.0",
+		"types-aiofiles>=23.10.0.20240106",
+		"types-markdown>=3.8.0.20250708",
+		"types-python-dateutil>=2.9.0.20250708",
+		"types-pyyaml>=6.0.12.20250516",
+		"types-regex>=2024.11.6.20250403",
+		"types-setuptools>=80.9.0.20250801",
+		"typing-extensions>=4.14.1",
+		"typing-inspection>=0.4.1",
+		"uv>=0.8.4",
+		"vulture>=2.14",
 ]
 
 [tool.mypy]
@@ -157,15 +160,19 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 # Add common pytest command-line options to be used by default
 addopts = """
-    --cov=src/git_ai_reporter
-    --cov-report=term-missing
-    --cov-report=html
-    --cov-fail-under=55
-    -v
-    --tb=short
-    --strict-markers
-    --random-order
-    --timeout=15
+		--cov=src/git_ai_reporter
+		--cov-report=term-missing
+		--cov-report=html
+		--cov-fail-under=55
+		-v
+		--tb=short
+		--strict-markers
+		--random-order
+		--timeout=15
+		--alluredir=allure-results
+		--clean-alluredir
+		-p no:allure_pytest
+		-p no:allure_pytest_bdd
 """
 # Set the default timeout for all tests to 15 seconds
 timeout = 15

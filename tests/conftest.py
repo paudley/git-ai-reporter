@@ -7,6 +7,7 @@ This file contains fixtures and configuration that are available to all tests.
 """
 
 from collections.abc import Iterator
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -26,6 +27,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # Import test utilities (needs to be after path modification)
 from tests.utils.windows_cleanup import \
     safe_cleanup_on_windows  # pylint: disable=wrong-import-position  # noqa: E402
+
+# Register our custom Allure plugin - must load first to prevent conflicts
+pytest_plugins = ["tests.allure_unified_plugin"]
 
 # Constants
 WINDOWS_OS_NAME: Final[str] = "nt"
@@ -314,6 +318,81 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line("markers", "asyncio: marks tests as async tests")
     config.addinivalue_line("markers", "requires_api_key: marks tests that need API key")
+
+
+# BDD Fixtures for pytest-bdd tests
+@pytest.fixture
+def mock_commit() -> MagicMock:
+    """Create a mock commit object for BDD testing."""
+    commit = MagicMock(spec=git.Commit)
+    commit.hexsha = "abc123"
+    commit.authored_datetime = datetime(2025, 1, 7, 10, 0, 0)
+    commit.author.name = "Test Author"
+    commit.author.email = "test@example.com"
+    commit.stats.files = {}
+    return commit
+
+
+@pytest.fixture
+def git_analyzer(temp_git_repo: git.Repo) -> MagicMock:  # pylint: disable=redefined-outer-name
+    """Create a mock GitAnalyzer instance for BDD testing."""
+    analyzer = MagicMock()
+    analyzer.repo_path = Path(temp_git_repo.working_dir) if temp_git_repo.working_dir else None
+    analyzer.since_date = datetime(2025, 1, 1)
+    analyzer.until_date = datetime(2025, 1, 8)
+    return analyzer
+
+
+@pytest.fixture
+def analysis_context() -> dict[str, Any]:
+    """Context dictionary for sharing state between BDD steps."""
+    return {}
+
+
+@pytest.fixture
+def summary_context() -> dict[str, Any]:
+    """Context dictionary for summary BDD steps."""
+    context = {}
+    return context
+
+
+@pytest.fixture
+def pre_release_context() -> dict[str, Any]:
+    """Context dictionary for pre-release BDD steps."""
+    return {
+        "version": None,
+        "changelog_content": None,
+        "news_content": None,
+        "daily_updates_content": None,
+        "commits": [],
+        "temp_dir": None,
+        "git_repo": None,
+        "output_files": {},
+        "command_result": None,
+    }
+
+
+@pytest.fixture
+def mock_genai_client() -> MagicMock:
+    """Create a mock google.genai.Client for advanced testing."""
+    try:
+        from google import genai  # pylint: disable=import-outside-toplevel
+
+        client = MagicMock(spec=genai.Client)
+    except ImportError:
+        # Fallback if genai not available
+        client = MagicMock()
+
+    client.aio = MagicMock()
+    client.aio.models = MagicMock()
+    client.aio.models.generate_content = AsyncMock()
+
+    # Setup count_tokens to return a proper response
+    token_response = MagicMock()
+    token_response.total_tokens = 100  # Default small token count
+    client.aio.models.count_tokens = AsyncMock(return_value=token_response)
+
+    return client
 
 
 @pytest.fixture(autouse=True)

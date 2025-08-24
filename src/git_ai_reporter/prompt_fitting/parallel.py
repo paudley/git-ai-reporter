@@ -163,7 +163,9 @@ class ParallelProcessingFitter(ContentFitter):
         self.parallel_token_counter = ParallelTokenCounter(params.token_counter, params.max_workers)
         self.logger = get_logger(f"ParallelFitter_{params.base_fitter.__class__.__name__}")
 
-    async def fit_content(self, content: str, target_tokens: int) -> FittingResult[ContentFitterT]:
+    async def fit_content(
+        self, content: str, target_tokens: int
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Fit content using parallel-enhanced base fitter."""
         async with self.logger.operation(
             "parallel_fit_content",
@@ -195,7 +197,7 @@ class ParallelProcessingFitter(ContentFitter):
 
     async def _parallel_fit_large_content(
         self, content: str, target_tokens: int, metrics: OperationMetrics
-    ) -> FittingResult[ContentFitterT]:
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Process large content using parallel chunk analysis."""
 
         # Step 1: Create initial chunks using base fitter's logic
@@ -220,7 +222,7 @@ class ParallelProcessingFitter(ContentFitter):
 
     async def _parallel_chunk_and_fit(
         self, content: str, target_tokens: int, metrics: OperationMetrics
-    ) -> FittingResult[ContentFitterT]:
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Create and process chunks in parallel."""
 
         # Create chunks using simple line-based approach

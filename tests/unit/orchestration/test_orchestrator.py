@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 # pylint: disable=redefined-outer-name,unused-argument,too-many-lines,duplicate-code
-# pylint: disable=protected-access
+# pylint: disable=protected-access,magic-value-comparison
 
 """Unit tests for git_ai_reporter.orchestration.orchestrator module.
 
@@ -12,10 +12,13 @@ analysis pipeline including commit analysis, summary generation, and artifact wr
 
 from datetime import datetime
 from datetime import timezone
+import json
+import time
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import allure
 import git
 import pytest
 import pytest_check as check
@@ -40,36 +43,58 @@ from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 
 
 @pytest.fixture
+@allure.title("Mock GitAnalyzer fixture")
 def mock_git_analyzer() -> MagicMock:
     """Create a mock GitAnalyzer."""
-    # NOTE: Using spec_set would be better, but tests use obsolete API methods
-    # that no longer exist on the real GitAnalyzer class. This needs cleanup.
-    analyzer = MagicMock()
-    analyzer.repo = MagicMock(spec=git.Repo)
-    analyzer.repo.working_dir = "/test/repo"
-    # Add minimal type checking for Pydantic validation
-    analyzer.__class__ = GitAnalyzer
-    return analyzer
+    with allure.step("Create mock GitAnalyzer instance"):
+        # NOTE: Using spec_set would be better, but tests use obsolete API methods
+        # that no longer exist on the real GitAnalyzer class. This needs cleanup.
+        analyzer = MagicMock()
+        analyzer.repo = MagicMock(spec=git.Repo)
+        analyzer.repo.working_dir = "/test/repo"
+        # Add minimal type checking for Pydantic validation
+        analyzer.__class__ = GitAnalyzer
+
+        allure.attach(
+            json.dumps({"working_dir": "/test/repo", "class": "GitAnalyzer"}, indent=2),
+            name="Mock Analyzer Configuration",
+            attachment_type=allure.attachment_type.JSON,
+        )
+        return analyzer
 
 
 @pytest.fixture
+@allure.title("Mock GeminiClient fixture")
 def mock_gemini_client() -> MagicMock:
     """Create a mock GeminiClient."""
-    client = MagicMock(spec=GeminiClient)
-    client.generate_commit_analysis = AsyncMock()
-    client.synthesize_daily_summary = AsyncMock()
-    client.generate_news_narrative = AsyncMock()
-    client.generate_changelog_entries = AsyncMock()
+    with allure.step("Create mock GeminiClient with AI capabilities"):
+        client = MagicMock(spec=GeminiClient)
+        client.generate_commit_analysis = AsyncMock()
+        client.synthesize_daily_summary = AsyncMock()
+        client.generate_news_narrative = AsyncMock()
+        client.generate_changelog_entries = AsyncMock()
 
-    # Add missing attributes that orchestrator accesses
-    client._client = MagicMock()
-    client._client.aio = MagicMock()
-    client._client.aio.models = MagicMock()
-    client._client.aio.models.count_tokens = AsyncMock(return_value=MagicMock(total_tokens=100))
-    client._config = MagicMock()
-    client._config.model_tier2 = "gemini-2.5-pro"
+        # Add missing attributes that orchestrator accesses
+        client._client = MagicMock()
+        client._client.aio = MagicMock()
+        client._client.aio.models = MagicMock()
+        client._client.aio.models.count_tokens = AsyncMock(return_value=MagicMock(total_tokens=100))
+        client._config = MagicMock()
+        client._config.model_tier2 = "gemini-2.5-pro"
 
-    return client
+        allure.attach(
+            json.dumps(
+                {
+                    "model_tier2": "gemini-2.5-pro",
+                    "token_count": 100,
+                    "capabilities": ["analysis", "summary", "narrative", "changelog"],
+                },
+                indent=2,
+            ),
+            name="Gemini Client Configuration",
+            attachment_type=allure.attachment_type.JSON,
+        )
+        return client
 
 
 @pytest.fixture
@@ -180,9 +205,22 @@ def sample_analysis_result() -> AnalysisResult:
     )
 
 
+@allure.feature("Analysis Orchestration")
+@allure.story("Pipeline Coordination and Management")
 class TestAnalysisOrchestrator:
     """Test suite for AnalysisOrchestrator class."""
 
+    @allure.title("Instantiate orchestrator with service dependencies")
+    @allure.description(
+        "Verifies that AnalysisOrchestrator can be properly instantiated with all required service dependencies"
+    )
+    @allure.severity(allure.severity_level.BLOCKER)
+    @allure.tag("orchestration", "initialization", "smoke", "critical-path")
+    @allure.link(
+        "https://github.com/example/git-reporter/docs/orchestrator",
+        name="Orchestrator Documentation",
+    )
+    @allure.testcase("TC-ORCH-001", "Test orchestrator instantiation")
     def test_orchestrator_instantiation_with_parameter_classes(
         self,
         mock_git_analyzer: MagicMock,
@@ -192,25 +230,63 @@ class TestAnalysisOrchestrator:
         mock_console: MagicMock,
     ) -> None:
         """Smoke test: Verify orchestrator can be instantiated with new parameter classes."""
-        services = OrchestratorServices(
-            git_analyzer=mock_git_analyzer,
-            gemini_client=mock_gemini_client,
-            cache_manager=mock_cache_manager,
-            artifact_writer=mock_artifact_writer,
-            console=mock_console,
+        allure.dynamic.description(
+            "Testing orchestrator instantiation with dependency injection pattern"
         )
-        config = OrchestratorConfig(
-            no_cache=False,
-            max_concurrent_tasks=10,
-            debug=False,
-        )
+        allure.dynamic.tag("dependency-injection")
 
-        orchestrator = AnalysisOrchestrator(services=services, config=config)
+        start_time = time.time()
 
-        # Verify the orchestrator was created successfully
-        check.is_not_none(orchestrator)
-        check.equal(orchestrator.services, services)
-        check.equal(orchestrator.config, config)
+        with allure.step("Create orchestrator services configuration"):
+            services = OrchestratorServices(
+                git_analyzer=mock_git_analyzer,
+                gemini_client=mock_gemini_client,
+                cache_manager=mock_cache_manager,
+                artifact_writer=mock_artifact_writer,
+                console=mock_console,
+            )
+            config = OrchestratorConfig(
+                no_cache=False,
+                max_concurrent_tasks=10,
+                debug=False,
+            )
+
+            allure.attach(
+                json.dumps(
+                    {
+                        "no_cache": False,
+                        "max_concurrent_tasks": 10,
+                        "debug": False,
+                        "services_count": 5,
+                    },
+                    indent=2,
+                ),
+                name="Orchestrator Configuration",
+                attachment_type=allure.attachment_type.JSON,
+            )
+
+        with allure.step("Instantiate AnalysisOrchestrator"):
+            try:
+                orchestrator = AnalysisOrchestrator(services=services, config=config)
+                instantiation_time = time.time() - start_time
+                allure.attach(
+                    f"Instantiation completed in {instantiation_time:.4f}s",
+                    name="Performance Metrics",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+            except Exception as e:
+                allure.attach(
+                    f"Instantiation failed: {str(e)}",
+                    name="Error Details",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
+
+        with allure.step("Verify orchestrator instantiation"):
+            # Verify the orchestrator was created successfully
+            check.is_not_none(orchestrator)
+            check.equal(orchestrator.services, services)
+            check.equal(orchestrator.config, config)
 
         # Verify individual service access
         check.equal(orchestrator.services.git_analyzer, mock_git_analyzer)
@@ -219,19 +295,51 @@ class TestAnalysisOrchestrator:
         check.equal(orchestrator.config.max_concurrent_tasks, 10)
 
     @pytest.mark.asyncio
+    @allure.title("Test orchestrator run with empty commit range")
+    @allure.description(
+        "Verifies proper handling when no commits exist in the specified date range"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "edge-case", "error-handling")
+    @allure.testcase("TC-ORCH-002", "Test no commits scenario")
     async def test_run_no_commits(
         self,
         orchestrator: AnalysisOrchestrator,
         mock_git_analyzer: MagicMock,
     ) -> None:
         """Test run with no commits in range."""
-        mock_git_analyzer.get_commits_in_range.return_value = []
+        allure.dynamic.description("Testing graceful handling of empty commit ranges")
 
-        with pytest.raises(typer.Exit):
-            await orchestrator.run(
-                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
-                end_date=datetime(2025, 1, 7, tzinfo=timezone.utc),
+        with allure.step("Configure mock to return empty commit list"):
+            mock_git_analyzer.get_commits_in_range.return_value = []
+            allure.attach(
+                json.dumps(
+                    {"commits_returned": 0, "date_range": "2025-01-01 to 2025-01-07"}, indent=2
+                ),
+                name="Test Configuration",
+                attachment_type=allure.attachment_type.JSON,
             )
+
+        with allure.step("Execute orchestrator run and expect controlled exit"):
+            try:
+                with pytest.raises(typer.Exit) as exc_info:
+                    await orchestrator.run(
+                        start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                        end_date=datetime(2025, 1, 7, tzinfo=timezone.utc),
+                    )
+
+                allure.attach(
+                    f"Expected typer.Exit raised successfully with code: {exc_info.value.exit_code if hasattr(exc_info.value, 'exit_code') else 'N/A'}",
+                    name="Exit Handling",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+            except Exception as e:
+                allure.attach(
+                    f"Unexpected error: {str(e)}",
+                    name="Error Details",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
 
     @pytest.mark.asyncio
     async def test_run_with_no_nontrivial_commits_debug_mode(
@@ -270,6 +378,13 @@ class TestAnalysisOrchestrator:
             mock_console.print.assert_any_call("No non-trivial commits found to analyze.")
 
     @pytest.mark.asyncio
+    @allure.title("Test orchestrator run in debug mode with commits")
+    @allure.description(
+        "Verifies full orchestrator pipeline execution in debug mode with detailed logging"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "debug", "full-pipeline", "integration")
+    @allure.testcase("TC-ORCH-003", "Test debug mode execution")
     async def test_run_with_commits_debug_mode(
         self,
         mock_git_analyzer: MagicMock,
@@ -281,19 +396,41 @@ class TestAnalysisOrchestrator:
         sample_analysis_result: AnalysisResult,
     ) -> None:
         """Test run with commits in debug mode."""
-        services = OrchestratorServices(
-            git_analyzer=mock_git_analyzer,
-            gemini_client=mock_gemini_client,
-            cache_manager=mock_cache_manager,
-            artifact_writer=mock_artifact_writer,
-            console=mock_console,
+        allure.dynamic.description(
+            "Testing complete analysis pipeline with debug output and performance tracking"
         )
-        config = OrchestratorConfig(
-            no_cache=False,
-            max_concurrent_tasks=10,
-            debug=True,  # Enable debug mode
-        )
-        orchestrator = AnalysisOrchestrator(services=services, config=config)
+        allure.dynamic.tag("performance-tracking")
+
+        start_time = time.time()
+
+        with allure.step("Configure orchestrator for debug mode execution"):
+            services = OrchestratorServices(
+                git_analyzer=mock_git_analyzer,
+                gemini_client=mock_gemini_client,
+                cache_manager=mock_cache_manager,
+                artifact_writer=mock_artifact_writer,
+                console=mock_console,
+            )
+            config = OrchestratorConfig(
+                no_cache=False,
+                max_concurrent_tasks=10,
+                debug=True,  # Enable debug mode
+            )
+            orchestrator = AnalysisOrchestrator(services=services, config=config)
+
+            allure.attach(
+                json.dumps(
+                    {
+                        "debug_enabled": True,
+                        "max_concurrent_tasks": 10,
+                        "cache_disabled": False,
+                        "commit_count": len(mock_commits),
+                    },
+                    indent=2,
+                ),
+                name="Debug Mode Configuration",
+                attachment_type=allure.attachment_type.JSON,
+            )
 
         mock_git_analyzer.get_commits_in_range.return_value = mock_commits
         mock_git_analyzer.get_daily_commit_groups.return_value = {
@@ -314,17 +451,60 @@ class TestAnalysisOrchestrator:
         mock_gemini_client.generate_news_narrative.return_value = "Weekly narrative"
         mock_gemini_client.generate_changelog_entries.return_value = "## Changelog"
 
-        await orchestrator.run(
-            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
-            end_date=datetime(2025, 1, 7, tzinfo=timezone.utc),
-        )
+        with allure.step("Execute orchestrator run and measure performance"):
+            try:
+                await orchestrator.run(
+                    start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    end_date=datetime(2025, 1, 7, tzinfo=timezone.utc),
+                )
+                execution_time = time.time() - start_time
 
-        # Verify methods were called
-        mock_git_analyzer.get_commits_in_range.assert_called_once()
-        check.greater_equal(mock_gemini_client.generate_commit_analysis.call_count, 1)
-        mock_artifact_writer.update_news_file.assert_called_once()
-        mock_artifact_writer.update_changelog_file.assert_called_once()
-        mock_artifact_writer.update_daily_updates_file.assert_called_once()
+                allure.attach(
+                    json.dumps(
+                        {
+                            "execution_time_seconds": execution_time,
+                            "commits_processed": len(mock_commits),
+                            "processing_rate_commits_per_second": (
+                                len(mock_commits) / execution_time if execution_time > 0 else 0
+                            ),
+                        },
+                        indent=2,
+                    ),
+                    name="Execution Performance Metrics",
+                    attachment_type=allure.attachment_type.JSON,
+                )
+            except Exception as e:
+                allure.attach(
+                    f"Execution failed: {str(e)}",
+                    name="Execution Error",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
+
+        with allure.step("Verify all pipeline components were invoked correctly"):
+            # Verify methods were called
+            mock_git_analyzer.get_commits_in_range.assert_called_once()
+            check.greater_equal(mock_gemini_client.generate_commit_analysis.call_count, 1)
+            mock_artifact_writer.update_news_file.assert_called_once()
+            mock_artifact_writer.update_changelog_file.assert_called_once()
+            mock_artifact_writer.update_daily_updates_file.assert_called_once()
+
+            allure.attach(
+                json.dumps(
+                    {
+                        "git_analyzer_calls": 1,
+                        "gemini_analysis_calls": mock_gemini_client.generate_commit_analysis.call_count,
+                        "artifact_updates": {
+                            "news_file": 1,
+                            "changelog_file": 1,
+                            "daily_updates_file": 1,
+                        },
+                    },
+                    indent=2,
+                ),
+                name="Pipeline Invocation Summary",
+                attachment_type=allure.attachment_type.JSON,
+            )
 
     @pytest.mark.asyncio
     async def test_run_with_commits_no_debug(
@@ -396,6 +576,11 @@ class TestAnalysisOrchestrator:
         mock_git_analyzer.get_commits_in_range.assert_called_once()
 
     @pytest.mark.asyncio
+    @allure.title("Test single commit analysis with AI processing")
+    @allure.description("Verifies individual commit analysis through AI with caching integration")
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "ai-analysis", "commit-processing", "caching")
+    @allure.testcase("TC-ORCH-005", "Test single commit analysis")
     async def test_analyze_one_commit(
         self,
         orchestrator: AnalysisOrchestrator,
@@ -405,20 +590,72 @@ class TestAnalysisOrchestrator:
         mock_commits: list[MagicMock],
     ) -> None:
         """Test analyzing a single commit."""
-        commit = mock_commits[0]
-        mock_git_analyzer.get_commit_diff.return_value = "test diff"
+        allure.dynamic.description("Testing AI-powered single commit analysis with cache storage")
+        allure.dynamic.tag("ai-integration")
 
-        analysis = CommitAnalysis(
-            changes=[Change(summary="Test", category="New Feature")],
-            trivial=False,
-        )
-        mock_gemini_client.generate_commit_analysis.return_value = analysis
+        with allure.step("Setup commit analysis test data"):
+            commit = mock_commits[0]
+            mock_git_analyzer.get_commit_diff.return_value = "test diff"
 
-        result = await orchestrator._analyze_one_commit(commit)
+            analysis = CommitAnalysis(
+                changes=[Change(summary="Test", category="New Feature")],
+                trivial=False,
+            )
+            mock_gemini_client.generate_commit_analysis.return_value = analysis
 
-        check.equal(result[0], commit)
-        check.equal(result[1], analysis)
-        mock_cache_manager.set_commit_analysis.assert_called_once_with(commit.hexsha, analysis)
+            allure.attach(
+                json.dumps(
+                    {
+                        "commit_hexsha": commit.hexsha,
+                        "diff_content": "test diff",
+                        "expected_analysis": {
+                            "changes_count": 1,
+                            "trivial": False,
+                            "category": "New Feature",
+                        },
+                    },
+                    indent=2,
+                ),
+                name="Commit Analysis Setup",
+                attachment_type=allure.attachment_type.JSON,
+            )
+
+        with allure.step("Execute commit analysis"):
+            start_time = time.time()
+            try:
+                result = await orchestrator._analyze_one_commit(commit)
+                analysis_time = time.time() - start_time
+
+                allure.attach(
+                    f"Analysis completed in {analysis_time:.4f}s",
+                    name="Analysis Performance",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+            except Exception as e:
+                allure.attach(
+                    f"Analysis failed: {str(e)}",
+                    name="Analysis Error",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
+
+        with allure.step("Verify analysis results and caching"):
+            check.equal(result[0], commit)
+            check.equal(result[1], analysis)
+            mock_cache_manager.set_commit_analysis.assert_called_once_with(commit.hexsha, analysis)
+
+            allure.attach(
+                json.dumps(
+                    {
+                        "result_commit_match": result[0] == commit,
+                        "result_analysis_match": result[1] == analysis,
+                        "cache_storage_verified": True,
+                    },
+                    indent=2,
+                ),
+                name="Analysis Verification Results",
+                attachment_type=allure.attachment_type.JSON,
+            )
 
     @pytest.mark.asyncio
     async def test_analyze_one_commit_with_cache_hit(
@@ -715,6 +952,13 @@ class TestAnalysisOrchestrator:
         assert orchestrator is not None
 
     @pytest.mark.asyncio
+    @allure.title("Test error handling during commit analysis")
+    @allure.description(
+        "Verifies robust error handling and proper exception wrapping during commit analysis"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("orchestration", "error-handling", "resilience", "exception-handling")
+    @allure.testcase("TC-ORCH-006", "Test commit analysis error handling")
     async def test_error_handling_in_commit_analysis(
         self,
         orchestrator: AnalysisOrchestrator,
@@ -723,14 +967,63 @@ class TestAnalysisOrchestrator:
         mock_commits: list[MagicMock],
     ) -> None:
         """Test error handling during commit analysis."""
-        mock_git_analyzer.get_commit_diff.side_effect = Exception("Git error")
+        allure.dynamic.description("Testing graceful error handling with proper exception chaining")
+        allure.dynamic.tag("exception-chaining")
 
-        # Should raise GeminiClientError with wrapped original error
-        with pytest.raises(GeminiClientError) as exc_info:
-            await orchestrator._analyze_one_commit(mock_commits[0])
+        with allure.step("Configure mock to simulate Git error"):
+            git_error = Exception("Git error")
+            mock_git_analyzer.get_commit_diff.side_effect = git_error
 
-        check.is_in("Failed to analyze commit", str(exc_info.value))
-        check.is_in("Git error", str(exc_info.value))
+            allure.attach(
+                json.dumps(
+                    {
+                        "simulated_error": "Git error",
+                        "error_type": "Exception",
+                        "commit_hexsha": mock_commits[0].hexsha,
+                    },
+                    indent=2,
+                ),
+                name="Error Simulation Setup",
+                attachment_type=allure.attachment_type.JSON,
+            )
+
+        with allure.step("Execute commit analysis and capture error handling"):
+            try:
+                with pytest.raises(GeminiClientError) as exc_info:
+                    await orchestrator._analyze_one_commit(mock_commits[0])
+
+                error_message = str(exc_info.value)
+                allure.attach(
+                    json.dumps(
+                        {
+                            "exception_type": "GeminiClientError",
+                            "error_message": error_message,
+                            "contains_failure_message": "Failed to analyze commit" in error_message,
+                            "contains_original_error": "Git error" in error_message,
+                        },
+                        indent=2,
+                    ),
+                    name="Error Handling Results",
+                    attachment_type=allure.attachment_type.JSON,
+                )
+
+            except Exception as e:
+                allure.attach(
+                    f"Unexpected error type: {type(e).__name__}: {str(e)}",
+                    name="Unexpected Error",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
+
+        with allure.step("Verify error message content and wrapping"):
+            check.is_in("Failed to analyze commit", str(exc_info.value))
+            check.is_in("Git error", str(exc_info.value))
+
+            allure.attach(
+                "Error handling verified: proper exception wrapping and message preservation",
+                name="Error Handling Verification",
+                attachment_type=allure.attachment_type.TEXT,
+            )
 
     @pytest.mark.asyncio
     async def test_week_grouping_logic(
@@ -771,27 +1064,85 @@ class TestAnalysisOrchestrator:
             check.is_instance(result, AnalysisResult)
 
 
+@allure.story("Helper Methods and Utilities")
 class TestOrchestratorHelperMethods:
     """Test suite for AnalysisOrchestrator helper methods."""
 
+    @allure.title("Extract string commit messages")
+    @allure.description("Verifies that string commit messages are properly extracted and formatted")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("orchestration", "commit-processing", "strings", "data-extraction")
+    @allure.link(
+        "https://github.com/example/git-reporter/docs/commit-processing",
+        name="Commit Processing Docs",
+    )
+    @allure.testcase("TC-ORCH-004", "Test string message extraction")
     def test_extract_commit_messages_with_string_messages(
         self,
         orchestrator: AnalysisOrchestrator,
     ) -> None:
         """Test _extract_commit_messages with string commit messages."""
-        # Create mock commits with string messages
-        commits = []
-        for message in ("feat: add feature", "fix: bug fix", "docs: update readme"):
-            commit = MagicMock()
-            commit.message = message  # String message
-            commits.append(commit)
+        allure.dynamic.description(
+            "Testing extraction of conventional commit messages from string format"
+        )
+        allure.dynamic.tag("conventional-commits")
 
-        messages = orchestrator._extract_commit_messages(commits)
+        with allure.step("Create mock commits with string messages"):
+            # Create mock commits with string messages
+            commit_messages = ["feat: add feature", "fix: bug fix", "docs: update readme"]
+            commits = []
+            for message in commit_messages:
+                commit = MagicMock()
+                commit.message = message  # String message
+                commits.append(commit)
 
-        check.equal(len(messages), 3)
-        check.equal(messages[0], "feat: add feature")
-        check.equal(messages[1], "fix: bug fix")
-        check.equal(messages[2], "docs: update readme")
+            allure.attach(
+                json.dumps(
+                    {
+                        "input_messages": commit_messages,
+                        "message_types": ["feat", "fix", "docs"],
+                        "total_commits": len(commits),
+                    },
+                    indent=2,
+                ),
+                name="Input Commit Messages",
+                attachment_type=allure.attachment_type.JSON,
+            )
+
+        with allure.step("Extract commit messages"):
+            try:
+                messages = orchestrator._extract_commit_messages(commits)
+                allure.attach(
+                    "\n".join(messages),
+                    name="Extracted Messages",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+            except Exception as e:
+                allure.attach(
+                    f"Extraction failed: {str(e)}",
+                    name="Extraction Error",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
+                raise
+
+        with allure.step("Verify message extraction accuracy"):
+            check.equal(len(messages), 3)
+            check.equal(messages[0], "feat: add feature")
+            check.equal(messages[1], "fix: bug fix")
+            check.equal(messages[2], "docs: update readme")
+
+            allure.attach(
+                json.dumps(
+                    {
+                        "extraction_successful": True,
+                        "output_count": len(messages),
+                        "message_integrity_preserved": all(m in commit_messages for m in messages),
+                    },
+                    indent=2,
+                ),
+                name="Extraction Verification Results",
+                attachment_type=allure.attachment_type.JSON,
+            )
 
     def test_extract_commit_messages_with_bytes_messages(
         self,

@@ -170,7 +170,9 @@ class FallbackChainFitter(ContentFitter):
             ),
         ]
 
-    async def fit_content(self, content: str, target_tokens: int) -> FittingResult[ContentFitterT]:
+    async def fit_content(
+        self, content: str, target_tokens: int
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Fit content using the fallback chain strategy.
 
         Tries strategies in priority order until one succeeds or all fail.
@@ -203,6 +205,7 @@ class FallbackChainFitter(ContentFitter):
         all_attempts: list[StrategyAttempt[Any]] = []
 
         for strategy in applicable_strategies:
+            strategy_start_time = time.time()
             try:
                 async with self.logger.operation(
                     f"fallback_attempt_{strategy.name}",
@@ -246,7 +249,7 @@ class FallbackChainFitter(ContentFitter):
                     success=False,
                     error=error,
                     result=None,
-                    duration=time.time() - metrics.start_time,
+                    duration=time.time() - strategy_start_time,
                     metadata={"target_tokens": target_tokens, "content_size": len(content)},
                 )
 
@@ -298,7 +301,7 @@ class FallbackChainFitter(ContentFitter):
         content: str,
         target_tokens: int,
         metrics: OperationMetrics,
-    ) -> FittingResult[ContentFitterT]:
+    ) -> FittingResult[ContentFitterT]:  # pyright: ignore[reportInvalidTypeVarUse]
         """Try a single strategy with timeout and retry logic."""
         fitter = await strategy.create_fitter(self.config, self.token_counter)
 

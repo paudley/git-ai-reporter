@@ -60,7 +60,7 @@ class _GeminiTokenCounter:
             return TokenCount(response.total_tokens or 0)
         except (
             HTTPStatusError,
-            genai.errors.ClientError,
+            genai.errors.ClientError,  # pyright: ignore[reportAttributeAccessIssue]
             ConnectError,
             ValidationError,
             ValueError,
@@ -284,7 +284,10 @@ class GeminiClient:
         ) as e:
             # Re-raise to be caught by the tenacity retry decorator.
             raise e
-        except (HTTPStatusError, genai.errors.ClientError) as e:
+        except (
+            HTTPStatusError,
+            genai.errors.ClientError,  # pyright: ignore[reportAttributeAccessIssue]
+        ) as e:
             raise GeminiClientError(f"Error calling Gemini API: {type(e).__name__}: {e}") from e
         except Exception as e:
             # Catch any other unexpected exceptions and wrap them
@@ -428,6 +431,7 @@ class GeminiClient:
         start_time = time.time()
         error: Optional[Exception] = None
         fitting_result = None
+        prompt: Optional[str] = None
 
         try:
             # Handle empty diff as a special case
@@ -454,6 +458,8 @@ class GeminiClient:
 
         except RetryError as e:
             error = e
+            if prompt is None:
+                raise GeminiClientError("Failed to generate prompt before retries") from e
             return await self._handle_retry_with_fallback(prompt, e)
 
         finally:
@@ -500,7 +506,10 @@ class GeminiClient:
             parsed_data: object = json_helpers.safe_json_decode(raw_response)
             return CommitAnalysis.model_validate(parsed_data)
 
-        except (HTTPStatusError, genai.errors.ClientError) as e:
+        except (
+            HTTPStatusError,
+            genai.errors.ClientError,  # pyright: ignore[reportAttributeAccessIssue]
+        ) as e:
             raise GeminiClientError(
                 f"Error calling Gemini API (fallback): {type(e).__name__}: {e}"
             ) from e
@@ -540,7 +549,7 @@ class GeminiClient:
                 raise
             except (
                 HTTPStatusError,
-                genai.errors.ClientError,
+                genai.errors.ClientError,  # pyright: ignore[reportAttributeAccessIssue]
             ) as e:
                 raise GeminiClientError(f"Error calling Gemini API: {type(e).__name__}: {e}") from e
             except Exception as e:

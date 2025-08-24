@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+import allure
 import pytest
 import pytest_check as check
 from rich.console import Console
@@ -62,31 +63,49 @@ def sample_analysis_result() -> AnalysisResult:
     )
 
 
+@allure.feature("Writing - Artifact Writer")
+@allure.story("File Generation and Updates")
 class TestArtifactWriter:
     """Test suite for ArtifactWriter class."""
 
+    @allure.title("Initialize ArtifactWriter with file paths")
+    @allure.description(
+        "Verifies that ArtifactWriter can be properly initialized with NEWS.md, CHANGELOG.txt and DAILY_UPDATES.md paths"
+    )
+    @allure.severity(allure.severity_level.BLOCKER)
+    @allure.tag("writing", "initialization", "files")
     def test_init(self, temp_dir: Path) -> None:
         """Test ArtifactWriter initialization."""
-        console = Console()
-        writer = ArtifactWriter(
-            news_file=str(temp_dir / "NEWS.md"),
-            changelog_file=str(temp_dir / "CHANGELOG.txt"),
-            daily_updates_file=str(temp_dir / "DAILY_UPDATES.md"),
-            console=console,
-        )
-        check.equal(writer.news_path, temp_dir / "NEWS.md")
+        with allure.step("Create ArtifactWriter instance"):
+            console = Console()
+            writer = ArtifactWriter(
+                news_file=str(temp_dir / "NEWS.md"),
+                changelog_file=str(temp_dir / "CHANGELOG.txt"),
+                daily_updates_file=str(temp_dir / "DAILY_UPDATES.md"),
+                console=console,
+            )
+
+        with allure.step("Verify file paths are set correctly"):
+            check.equal(writer.news_path, temp_dir / "NEWS.md")
         check.equal(writer.changelog_path, temp_dir / "CHANGELOG.txt")
         check.equal(writer.daily_updates_path, temp_dir / "DAILY_UPDATES.md")
 
     @pytest.mark.asyncio
+    @allure.title("Read historical summaries from NEWS.md")
+    @allure.description(
+        "Verifies that existing historical summaries can be read from NEWS.md files"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("writing", "reading", "historical-data")
     async def test_read_historical_summaries(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
         temp_dir: Path,
     ) -> None:
         """Test reading historical summaries."""
-        # Create existing NEWS.md with some history
-        news_file = temp_dir / "NEWS.md"
+        with allure.step("Create existing NEWS.md with historical content"):
+            # Create existing NEWS.md with some history
+            news_file = temp_dir / "NEWS.md"
         news_file.write_text(
             "# Project News\n\n"
             "## Week of 2024-12-25 to 2024-12-31\n"
@@ -95,31 +114,48 @@ class TestArtifactWriter:
             "Current week summary.\n"
         )
 
-        history = (
-            await artifact_writer._read_historical_summaries()
-        )  # pylint: disable=protected-access
+        with allure.step("Read historical summaries"):
+            history = (
+                await artifact_writer._read_historical_summaries()
+            )  # pylint: disable=protected-access
 
-        # Should return recent history
-        check.is_not_none(history)
-        check.is_in("Current week summary", history)
+        with allure.step("Verify historical content is retrieved"):
+            # Should return recent history
+            check.is_not_none(history)
+            check.is_in("Current week summary", history)
 
     @pytest.mark.asyncio
+    @allure.title("Append daily updates to existing file")
+    @allure.description(
+        "Verifies that new daily updates are properly merged with existing DAILY_UPDATES.md content"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("writing", "daily-updates", "merging")
     async def test_daily_updates_appends_to_existing(
         self,
         artifact_writer: ArtifactWriter,  # pylint: disable=redefined-outer-name
         temp_dir: Path,
     ) -> None:
         """Test that DAILY_UPDATES.md properly merges existing summaries."""
-        # Create existing file with proper format
-        daily_file = temp_dir / "DAILY_UPDATES.md"
-        daily_file.write_text("# Daily Updates\n### 2025-01-01\n\nOld updates here.\n")
+        with allure.step("Create existing daily updates file"):
+            # Create existing file with proper format
+            daily_file = temp_dir / "DAILY_UPDATES.md"
+            daily_file.write_text("# Daily Updates\n### 2025-01-01\n\nOld updates here.\n")
 
-        await artifact_writer.update_daily_updates_file(["### 2025-01-02\n\nNew daily update"])
+        with allure.step("Append new daily updates"):
+            await artifact_writer.update_daily_updates_file(["### 2025-01-02\n\nNew daily update"])
 
-        content = daily_file.read_text(encoding="utf-8")
-        check.is_in("Old updates here", content)
-        check.is_in("New daily update", content)
+        with allure.step("Verify content is properly merged"):
+            content = daily_file.read_text(encoding="utf-8")
+            check.is_in("Old updates here", content)
+            check.is_in("New daily update", content)
 
+    @allure.title("Handle empty input data gracefully")
+    @allure.description(
+        "Verifies that empty narratives, summaries, and changelog entries are handled without errors"
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("writing", "edge-cases", "empty-data")
     @pytest.mark.asyncio
     async def test_empty_inputs(
         self,
@@ -127,26 +163,37 @@ class TestArtifactWriter:
         temp_dir: Path,
     ) -> None:
         """Test handling of empty inputs."""
-        # Test with empty narrative - should still create file
-        params = NewsFileParams(narrative="", start_date=datetime.now(), end_date=datetime.now())
-        await artifact_writer.update_news_file(params)
+        with allure.step("Test empty narrative handling"):
+            # Test with empty narrative - should still create file
+            params = NewsFileParams(
+                narrative="", start_date=datetime.now(), end_date=datetime.now()
+            )
+            await artifact_writer.update_news_file(params)
         news_file = temp_dir / "NEWS.md"
         # File might not exist if nothing was written, which is ok
         if news_file.exists():
             check.is_true(news_file.exists())
 
-        # Test with empty daily summaries
-        await artifact_writer.update_daily_updates_file([])
+        with allure.step("Test empty daily summaries handling"):
+            # Test with empty daily summaries
+            await artifact_writer.update_daily_updates_file([])
         daily_file = temp_dir / "DAILY_UPDATES.md"
         if daily_file.exists():
             check.is_true(daily_file.exists())
 
-        # Test with empty changelog entries
-        await artifact_writer.update_changelog_file("")
+        with allure.step("Test empty changelog entries handling"):
+            # Test with empty changelog entries
+            await artifact_writer.update_changelog_file("")
         changelog_file = temp_dir / "CHANGELOG.txt"
         if changelog_file.exists():
             check.is_true(changelog_file.exists())
 
+    @allure.title("Format changelog entries with proper categories")
+    @allure.description(
+        "Verifies that changelog entries are properly formatted with emoji categories and content"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("writing", "changelog", "formatting")
     @pytest.mark.asyncio
     async def test_changelog_formatting(
         self,
@@ -154,8 +201,9 @@ class TestArtifactWriter:
         temp_dir: Path,
     ) -> None:
         """Test that changelog entries are formatted correctly."""
-        # Create various category entries
-        entries = """### ✨ New Feature
+        with allure.step("Create changelog entries with various categories"):
+            # Create various category entries
+            entries = """### ✨ New Feature
 - Add user authentication
 - Add profile management
 
@@ -172,9 +220,11 @@ class TestArtifactWriter:
 ### ❌ Removed
 - Remove legacy code"""
 
-        await artifact_writer.update_changelog_file(entries)
+        with allure.step("Update changelog file with formatted entries"):
+            await artifact_writer.update_changelog_file(entries)
 
-        content = (temp_dir / "CHANGELOG.txt").read_text(encoding="utf-8")
+        with allure.step("Verify changelog formatting and content"):
+            content = (temp_dir / "CHANGELOG.txt").read_text(encoding="utf-8")
         check.is_in("Add user authentication", content)
         check.is_in("Fix login timeout", content)
         check.is_in("Fix SQL injection", content)

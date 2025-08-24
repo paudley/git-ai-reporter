@@ -128,7 +128,9 @@ def create_batch_processing_summary(
     Returns:
         Dictionary with processing statistics
     """
-    successful = sum(1 for r in all_results if hasattr(r, "success") and r.success)
+    successful = sum(
+        1 for r in all_results if hasattr(r, "success") and getattr(r, "success", False)
+    )
     failed = len(all_results) - successful
 
     return BatchSummary(

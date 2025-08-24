@@ -710,9 +710,13 @@ class AdvancedContentAnalyzer:
 
     def _is_shell_script(self, _content: str, lines: list[str]) -> bool:
         """Check if content is a shell script."""
-        return (lines and lines[0].startswith("#!") and SHELL_SCRIPT_INDICATOR in lines[0]) or sum(
+        has_shebang = bool(
+            lines and lines[0].startswith("#!") and SHELL_SCRIPT_INDICATOR in lines[0]
+        )
+        shell_command_count = sum(
             1 for line in lines[:10] if re.match(r"^\s*(export|echo|cd|ls|grep)\s", line)
-        ) >= MIN_SHELL_INDICATORS
+        )
+        return has_shebang or shell_command_count >= MIN_SHELL_INDICATORS
 
     def _is_sql_query(self, _content: str, lines: list[str]) -> bool:
         """Check if content is SQL."""

@@ -128,6 +128,9 @@ function run_silent_on_pass {
 # Turn off error checking, we manually check returns from here on out.
 set +e
 
+# Update the lock file if need, this is fast and keeps it up to date.
+uv lock --quiet
+
 # Initial black format pass, so that line numbers make sense in errors consistently.
 fail_ok black -l ${LEN} -q ${FILES}
 
@@ -157,6 +160,9 @@ fail_bad bandit -q -ll -c pyproject.toml ${FILES}
 # Vulture for dead code identification.
 fail_bad vulture --min-confidence=80 ${FILES}
 
+# Pyright
+fail_bad pyright ${FILES_FILTERED}
+
 # Mypy in semi-strict mode.
 fail_bad mypy  ${EXCLUDE_opt} --exclude-gitignore --sqlite-cache --strict --warn-redundant-casts --warn-unused-ignores --no-implicit-reexport --show-error-codes --show-column-numbers --warn-unreachable --disallow-untyped-decorators --disallow-any-generics --check-untyped-defs ${FILES_FILTERED}
 
@@ -176,7 +182,7 @@ fail_bad pylint \
 				 ${FILES}
 
 # Run pytest, capturing output and only showing it on failure.
-run_silent_on_pass uv run --quiet --all-extras --isolated --locked pytest -m smoke -c /dev/null
+run_silent_on_pass uv run --quiet --all-extras --isolated --locked pytest --no-cov -p no:allure_pytest -p no:allure_pytest_bdd -m smoke -c /dev/null
 if [[ $? != 0 ]]; then
     FAILED=1
 fi
