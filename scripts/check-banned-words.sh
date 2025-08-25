@@ -34,7 +34,7 @@ fi
 
 # Temporary file to collect all banned words
 TEMP_BANNED_WORDS=$(mktemp)
-trap "rm -f $TEMP_BANNED_WORDS" EXIT
+trap 'rm -f "$TEMP_BANNED_WORDS"' EXIT
 
 # Function to add banned words from a file
 add_banned_words() {
@@ -102,8 +102,7 @@ while IFS= read -r banned_word; do
     # Skip empty lines
     [ -z "$banned_word" ] && continue
 
-    # Escape special regex characters for grep
-    escaped_word=$(printf '%s\n' "$banned_word" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    # Note: Using fixed string matching (-F) so no need to escape regex characters
 
     # Case-insensitive search for the banned word/phrase
     if grep -qiF -- "$banned_word" "$COMMIT_MESSAGES_FILE"; then

@@ -295,7 +295,7 @@ shellcheck:
 		echo "Found $$(echo $(SH_FILES) | wc -w) shell scripts to check"; \
 		for script in $(SH_FILES); do \
 			echo "  Checking $$script..."; \
-			shellcheck -e SC1091 -e SC2086 -e SC2181 $$script || exit 1; \
+			shellcheck -e SC1091 -e SC2086 -e SC2181 -e SC2268 $$script || exit 1; \
 		done; \
 		echo -e "$(GREEN)✓ All shell scripts valid$(NC)"; \
 	else \

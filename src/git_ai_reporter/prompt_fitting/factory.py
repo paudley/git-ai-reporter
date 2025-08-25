@@ -210,7 +210,7 @@ class StrategySelector(Protocol):
         available_strategies: dict[str, type[ContentFitter]],
     ) -> list[tuple[str, float]]:
         """Select strategies with confidence scores."""
-        ...  # pylint: disable=unnecessary-ellipsis
+        raise NotImplementedError("Subclasses must implement select_strategy")
 
 
 class HeuristicStrategySelector:

@@ -7,7 +7,7 @@ find . -name 'pyproject.toml' -type f -print | while read -r projfile; do
 		if [[ ! -d ${PROJECT_DIR} ]]; then
 				continue
 		fi
-		cd "${PROJECT_DIR}"
+		cd "${PROJECT_DIR}" || exit
 		echo "updating packages in ${PROJECT_DIR}"
 		if [[ ! -d .venv ]]; then
 				uv venv
