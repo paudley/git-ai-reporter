@@ -148,6 +148,7 @@ All notable changes to this project will be documented in this file.
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
         mock_gemini_client: AsyncMock,
+        mock_genai_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that pre-release flag creates proper version section."""
@@ -160,7 +161,7 @@ All notable changes to this project will be documented in this file.
 
         with (
             patch("git_ai_reporter.cli.GeminiClient", return_value=mock_gemini_client),
-            patch("git_ai_reporter.cli.genai.Client"),
+            patch("git_ai_reporter.cli.genai.Client", return_value=mock_genai_client),
             patch("git_ai_reporter.services.gemini.GeminiClient", return_value=mock_gemini_client),
         ):
 
@@ -206,6 +207,7 @@ All notable changes to this project will be documented in this file.
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
         mock_gemini_client: AsyncMock,
+        mock_genai_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that pre-release preserves existing version history."""
@@ -222,7 +224,7 @@ All notable changes to this project will be documented in this file.
 
         with (
             patch("git_ai_reporter.cli.GeminiClient", return_value=mock_gemini_client),
-            patch("git_ai_reporter.cli.genai.Client"),
+            patch("git_ai_reporter.cli.genai.Client", return_value=mock_genai_client),
             patch("git_ai_reporter.services.gemini.GeminiClient", return_value=mock_gemini_client),
         ):
 
@@ -257,6 +259,7 @@ All notable changes to this project will be documented in this file.
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
         mock_gemini_client: AsyncMock,
+        mock_genai_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test pre-release without version (should work normally)."""
@@ -267,7 +270,7 @@ All notable changes to this project will be documented in this file.
 
         with (
             patch("git_ai_reporter.cli.GeminiClient", return_value=mock_gemini_client),
-            patch("git_ai_reporter.cli.genai.Client"),
+            patch("git_ai_reporter.cli.genai.Client", return_value=mock_genai_client),
             patch("git_ai_reporter.services.gemini.GeminiClient", return_value=mock_gemini_client),
         ):
 
