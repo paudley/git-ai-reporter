@@ -63,7 +63,8 @@ jobs:
       - name: Install optimization tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y pngquant oxipng libjpeg-turbo-progs
+          sudo apt-get install -y pngquant libjpeg-turbo-progs rustc cargo
+          cargo install oxipng
           npm install -g svgo html-minifier-terser postcss postcss-cli uglify-js
 
       - name: Install MkDocs and dependencies
