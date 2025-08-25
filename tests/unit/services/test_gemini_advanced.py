@@ -27,6 +27,7 @@ import pytest
 import pytest_check as check
 from tenacity import AttemptManager
 from tenacity import RetryError
+
 # Import constants from basic test file
 from test_gemini_basic import EMPTY_RESPONSE_MSG
 
@@ -588,8 +589,9 @@ class TestConcurrency:
 
         with allure.step("Import private token counter class"):
             # Import here to avoid issues with private class access  # pylint: disable=import-outside-toplevel
-            from git_ai_reporter.services.gemini import \
-                _GeminiTokenCounter  # pylint: disable=import-private-name
+            from git_ai_reporter.services.gemini import (
+                _GeminiTokenCounter,
+            )  # pylint: disable=import-private-name
 
             allure.attach(
                 json.dumps(

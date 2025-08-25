@@ -25,8 +25,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Import test utilities (needs to be after path modification)
-from tests.utils.windows_cleanup import \
-    safe_cleanup_on_windows  # pylint: disable=wrong-import-position  # noqa: E402
+from tests.utils.windows_cleanup import (
+    safe_cleanup_on_windows,
+)  # pylint: disable=wrong-import-position  # noqa: E402
 
 # Register our custom Allure plugin - must load first to prevent conflicts
 pytest_plugins = ["tests.allure_unified_plugin"]

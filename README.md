@@ -1,8 +1,22 @@
-# 🚀 Git AI Reporter (DevSummary AI)
+# Git AI Reporter
 
 <div align="center">
 
-<img src="docs/logo.svg" alt="Git AI Reporter Logo" width="200" height="200">
+<img src="docs/logo.svg" alt="Git AI Reporter Logo" width="200" height="200" style="color: #24292f;">
+
+<!-- For Dark Mode Support -->
+<style>
+@media (prefers-color-scheme: dark) {
+  img[alt="Git AI Reporter Logo"] {
+    color: #f0f6fc !important;
+  }
+}
+@media (prefers-color-scheme: light) {
+  img[alt="Git AI Reporter Logo"] {
+    color: #24292f !important;
+  }
+}
+</style>
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -24,7 +38,7 @@
 
 ## 📖 Overview
 
-**Git AI Reporter** (DevSummary AI) is an AI-driven command-line tool that analyzes Git repository history and automatically generates high-quality development documentation. Using Google's Gemini models and a sophisticated three-tier AI architecture, it transforms raw commit data into polished, audience-specific narratives.
+**Git AI Reporter** is an AI-driven command-line tool that analyzes Git repository history and automatically generates high-quality development documentation. Using Google's Gemini models and a sophisticated three-tier AI architecture, it transforms raw commit data into polished, audience-specific narratives.
 
 ### What It Does
 

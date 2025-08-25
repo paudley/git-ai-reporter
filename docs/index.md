@@ -6,7 +6,7 @@ hide:
   - toc
 ---
 
-# Git AI Reporter (DevSummary AI)
+# Git AI Reporter
 
 <div class="md-hero">
   <div align="center">
@@ -32,7 +32,7 @@ hide:
 
 ## 🎯 What is Git AI Reporter?
 
-**Git AI Reporter** (DevSummary AI) is an AI-driven command-line tool that analyzes Git repository history and automatically generates high-quality development documentation. Using Google's Gemini models and a sophisticated three-tier AI architecture, it transforms raw commit data into polished, audience-specific narratives.
+**Git AI Reporter** is an AI-driven command-line tool that analyzes Git repository history and automatically generates high-quality development documentation. Using Google's Gemini models and a sophisticated three-tier AI architecture, it transforms raw commit data into polished, audience-specific narratives.
 
 <div class="feature-grid">
   <div class="feature-card">

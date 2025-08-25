@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
-"""DevSummary AI: AI-Driven Git Repository Analysis and Narrative Generation.
+"""Git AI Reporter: AI-Driven Git Repository Analysis and Narrative Generation.
 
 This script analyzes a Git repository over a specified timeframe, uses a tiered
 set of Google Gemini models to summarize the development activity, and generates

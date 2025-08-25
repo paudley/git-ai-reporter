@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
-"""Centralized configuration for the DevSummary AI application.
+"""Centralized configuration for the Git AI Reporter application.
 
 This module uses pydantic-settings to load configuration from environment
 variables or a .env file, providing type-safe access to settings.

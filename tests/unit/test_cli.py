@@ -23,10 +23,12 @@ import pytest_check as check
 import typer
 from typer.testing import CliRunner
 
-from git_ai_reporter.cli import \
-    _determine_date_range  # pylint: disable=protected-access,import-private-name
-from git_ai_reporter.cli import \
-    _load_settings  # pylint: disable=protected-access,import-private-name
+from git_ai_reporter.cli import (
+    _determine_date_range,
+)  # pylint: disable=protected-access,import-private-name
+from git_ai_reporter.cli import (
+    _load_settings,
+)  # pylint: disable=protected-access,import-private-name
 from git_ai_reporter.cli import analyze
 from git_ai_reporter.cli import APP
 from git_ai_reporter.config import Settings

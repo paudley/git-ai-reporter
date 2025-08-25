@@ -117,9 +117,9 @@ scan_file() {
             # Check if it's likely a real secret (not a hash or test data)
             local entropy_matches
             entropy_matches=$(grep -E "$ENTROPY_PATTERN" "$file" | \
-                grep -v "sha256\|md5\|hash\|digest\|test\|example\|sample" | \
+                grep -v "sha256\|md5\|hash\|digest\|test\|example\|sample\|hexsha" | \
                 grep -v "^[[:space:]]*#" | \
-                grep -v "^[[:space:]]*//")
+                grep -v "^[[:space:]]*//") || true
             
             if [ -n "$entropy_matches" ]; then
                 if [ $found -eq 0 ]; then
@@ -127,7 +127,7 @@ scan_file() {
                     found=1
                 fi
                 # Show entropy matches (avoid subshell to preserve FINDINGS counter)
-                echo "$entropy_matches" | head -3 | sed 's/^/  Possible secret: /' | cut -c1-80
+                echo "$entropy_matches" | head -3 | sed 's/^/  Possible secret: /' | cut -c1-80 || true
                 FINDINGS=$((FINDINGS + 1))
             fi
         fi
@@ -164,7 +164,7 @@ scan_file() {
             local matches
             matches=$(grep -E "$pattern" "$file" | \
                 grep -v "^[[:space:]]*#" | \
-                grep -v "^[[:space:]]*//")
+                grep -v "^[[:space:]]*//") || true
             
             # Skip email check for markdown files (documentation)
             if [ -n "$matches" ] && [[ ! "$file" =~ test ]] && [[ ! "$file" =~ \.md$ ]]; then
