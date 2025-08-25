@@ -206,6 +206,9 @@ docs/_build/
 # mkdocs documentation
 /site
 
+# mkdocs-publisher cache
+docs/.pub_min_cache/
+
 # =============================================================================
 # Framework-Specific
 # =============================================================================

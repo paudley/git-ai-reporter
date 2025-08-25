@@ -129,10 +129,6 @@ plugins:
       exclude:
         - index.md
   
-  - git-committers:
-      repository: paudley/git-ai-reporter
-      branch: main
-      enabled: !ENV [CI, false]
   
   - git-authors:
       enabled: !ENV [CI, false]
@@ -230,14 +226,7 @@ plugins:
       strict: false
   
   # Optimization Plugins
-  - minify:
-      minify_html: true
-      minify_js: true
-      minify_css: true
-      htmlmin_opts:
-        remove_comments: true
-        remove_empty_space: true
-        reduce_boolean_attributes: true
+  - pub-minifier
   
   # Image Zoom
   - glightbox:

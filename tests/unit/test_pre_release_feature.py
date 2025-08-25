@@ -100,11 +100,11 @@ All notable changes to this project will be documented in this file.
         return repo, temp_path
 
     @pytest.fixture
-    def mock_gemini_client(self) -> MagicMock:
+    def mock_gemini_client(self) -> AsyncMock:
         """Create a mock Gemini client."""
 
-        # Create a mock that passes isinstance checks
-        client = MagicMock(spec=GeminiClient)
+        # Create an AsyncMock that passes isinstance checks
+        client = AsyncMock(spec=GeminiClient)
 
         # Mock internal attributes needed by orchestrator
         client._client = MagicMock()
@@ -150,7 +150,7 @@ All notable changes to this project will be documented in this file.
     def test_pre_release_creates_version_section(
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
-        mock_gemini_client: MagicMock,
+        mock_gemini_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that pre-release flag creates proper version section."""
@@ -208,7 +208,7 @@ All notable changes to this project will be documented in this file.
     def test_pre_release_preserves_existing_versions(
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
-        mock_gemini_client: MagicMock,
+        mock_gemini_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that pre-release preserves existing version history."""
@@ -259,7 +259,7 @@ All notable changes to this project will be documented in this file.
     def test_pre_release_with_no_version_string(
         self,
         temp_git_repo_with_files: tuple[git.Repo, Path],
-        mock_gemini_client: MagicMock,
+        mock_gemini_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test pre-release without version (should work normally)."""

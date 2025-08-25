@@ -42,6 +42,75 @@ for dir in "${DIRS[@]}"; do
 		done
 done
 
+function uv_dev_maybe_add_also {
+		if grep -s "$1" pyproject.toml 2>&1 > /dev/null; then
+				uv add -q --dev "$2"
+		fi
+}
+
+if [[ "x$1" == "x--install" ]]; then
+		echo "installing lint.sh dev dependancies..."
+		uv add -q --dev \
+			 autopep8 \
+			 bandit[baseline,toml,sarif] \
+			 black \
+			 bs4 \
+			 flake8-builtins \
+			 flake8 \
+			 hypothesis \
+			 isort \
+			 markdown \
+			 mypy-extensions \
+			 mypy \
+			 pycodestyle \
+			 pyflakes \
+			 pylint-htmf \
+			 pylint-plugin-utils \
+			 pylint-pydantic \
+			 pylint \
+			 pyright \
+			 ruff \
+			 twine \
+			 types-aiofiles \
+			 types-markdown \
+			 types-regex \
+			 typing-extensions \
+			 typing-inspection \
+			 uv \
+			 vulture
+		uv_dev_maybe_add_also cachetools types-cachetools
+		uv_dev_maybe_add_also cffi types-cffi
+		uv_dev_maybe_add_also colorama types-colorama
+		uv_dev_maybe_add_also datetime types-python-dateutil
+		uv_dev_maybe_add_also defusedxml types-defusedxml
+		uv_dev_maybe_add_also docutils types-docutils
+		uv_dev_maybe_add_also gevent types-gevent
+		uv_dev_maybe_add_also greenlet types-greenlet
+		uv_dev_maybe_add_also html5lib types-html5lib
+		uv_dev_maybe_add_also httplib2 types-httplib2
+		uv_dev_maybe_add_also jsonschema types-jsonschema
+		uv_dev_maybe_add_also libsass types-libsass
+		uv_dev_maybe_add_also networkx types-networkx
+		uv_dev_maybe_add_also pandas panads-stubs
+		uv_dev_maybe_add_also protobuf types-protobuf
+		uv_dev_maybe_add_also psutil types-psutil
+		uv_dev_maybe_add_also pyasn1 types-pyasn1
+		uv_dev_maybe_add_also pygments types-pygments
+		uv_dev_maybe_add_also pyopenssl types-pyopenssl
+		uv_dev_maybe_add_also pytz types-pytz
+		uv_dev_maybe_add_also pywin32 types-pywin32
+		uv_dev_maybe_add_also pyyaml types-pyyaml
+		uv_dev_maybe_add_also requests types-requests
+		uv_dev_maybe_add_also scipy scipy-stubs
+		uv_dev_maybe_add_also setuptools types-setuptools
+		uv_dev_maybe_add_also shapely types-shapely
+		uv_dev_maybe_add_also simplejson types-simplejson
+		uv_dev_maybe_add_also tabulate types-tabulate
+		uv_dev_maybe_add_also tensorflow types-tensorflow
+		echo "done."
+		exit 0
+fi
+
 declare -a PYLINT_PLUGINS
 PYLINT_PLUGINS=(
 		"pylint.extensions.bad_builtin"
@@ -182,9 +251,11 @@ fail_bad pylint \
 				 ${FILES}
 
 # Run pytest, capturing output and only showing it on failure.
-run_silent_on_pass uv run --quiet --all-extras --isolated --locked pytest --no-cov -p no:allure_pytest -p no:allure_pytest_bdd -m smoke -c /dev/null
-if [[ $? != 0 ]]; then
-    FAILED=1
+if grep -s "smoke" tests/conftest.py pyproject.toml 2>&1 > /dev/null; then
+		run_silent_on_pass uv run --quiet --all-extras --isolated --locked pytest --no-cov -p no:allure_pytest -p no:allure_pytest_bdd -m smoke -c /dev/null
+		if [[ $? != 0 ]]; then
+				FAILED=1
+		fi
 fi
 
 if [[ $FAILED == 1 ]]; then
