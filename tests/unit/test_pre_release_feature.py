@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 import tempfile
 from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import allure
@@ -107,12 +106,12 @@ All notable changes to this project will be documented in this file.
         client = AsyncMock(spec=GeminiClient)
 
         # Mock internal attributes needed by orchestrator
-        client._client = MagicMock()
-        client._config = MagicMock()
+        client._client = AsyncMock()
+        client._config = AsyncMock()
         client._config.model_tier2 = "gemini-2.5-pro"
 
         # Mock the token counter that's used by PromptFitter
-        mock_token_counter = MagicMock()
+        mock_token_counter = AsyncMock()
         mock_token_counter.count_tokens = AsyncMock(
             return_value=1000
         )  # Return reasonable token count

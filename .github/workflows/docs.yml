@@ -60,6 +60,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
+      - name: Install optimization tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pngquant oxipng libjpeg-turbo-progs
+          npm install -g svgo html-minifier-terser postcss postcss-cli uglify-js
+
       - name: Install MkDocs and dependencies
         run: |
           uv venv
@@ -68,7 +74,7 @@ jobs:
       - name: Build documentation
         run: |
           cd docs
-          uv run mkdocs build --strict --verbose
+          uv run mkdocs build --strict
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
