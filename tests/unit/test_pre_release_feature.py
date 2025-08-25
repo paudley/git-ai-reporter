@@ -112,9 +112,7 @@ All notable changes to this project will be documented in this file.
 
         # Mock the token counter that's used by PromptFitter
         mock_token_counter = AsyncMock()
-        mock_token_counter.count_tokens = AsyncMock(
-            return_value=1000
-        )  # Return reasonable token count
+        mock_token_counter.count_tokens.return_value = 1000  # Return reasonable token count
         client._token_counter = mock_token_counter
 
         # Use AsyncMock for async methods
