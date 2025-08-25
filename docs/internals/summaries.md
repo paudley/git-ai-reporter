@@ -1,0 +1,1 @@
+../../src/git_ai_reporter/summaries/SUMMARIES.md

@@ -353,7 +353,7 @@ class FallbackChainFitter(ContentFitter):
 
     def _validate_result(self, result: FittingResult[ContentFitterT]) -> bool:
         """Validate that a strategy result meets quality requirements."""
-        # Must preserve data (CLAUDE.md requirement)
+        # Must preserve data (project requirement)
         if not result.data_preserved:
             return False
 

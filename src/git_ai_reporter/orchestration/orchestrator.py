@@ -491,10 +491,10 @@ class AnalysisOrchestrator:
         messages = self._extract_commit_messages(non_trivial_commits)
         weekly_log = "\n".join(messages)
 
-        # 🚨 CLAUDE.md COMPLIANCE: Complete Data Integrity Enforcement 🚨
+        # PROJECT COMPLIANCE: Complete Data Integrity Enforcement
         # This replaces the previous MAX_DIFF_LINES truncation (FORBIDDEN)
         # Uses data-preserving prompt fitting with overlapping chunks
-        # CRITICAL: NO truncation or data loss allowed per CLAUDE.md requirements
+        # CRITICAL: NO truncation or data loss allowed per project requirements
 
         # Create token counter using same model as Gemini service
         token_counter = _GeminiTokenCounter(
@@ -557,9 +557,9 @@ class AnalysisOrchestrator:
         messages = self._extract_commit_messages(non_trivial_commits)
         weekly_log = "\n".join(messages)
 
-        # 🚨 CLAUDE.md COMPLIANCE: Complete Data Integrity Enforcement 🚨
+        # PROJECT COMPLIANCE: Complete Data Integrity Enforcement
         # Uses data-preserving prompt fitting with overlapping chunks
-        # CRITICAL: NO truncation or data loss allowed per CLAUDE.md requirements
+        # CRITICAL: NO truncation or data loss allowed per project requirements
 
         # Create token counter using same model as Gemini service
         token_counter = _GeminiTokenCounter(

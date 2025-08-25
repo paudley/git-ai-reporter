@@ -16,4 +16,16 @@ if [ -f "$PROJECT_ROOT/scripts/check-quality.sh" ]; then
     "$PROJECT_ROOT/scripts/check-quality.sh" commit-msg "$COMMIT_MSG_FILE"
 fi
 
+# Check commit message for banned words
+echo ""
+echo "🚫 Checking commit message for banned words..."
+if [ -f "$PROJECT_ROOT/scripts/check-banned-words.sh" ]; then
+    if ! "$PROJECT_ROOT/scripts/check-banned-words.sh" "$COMMIT_MSG_FILE"; then
+        echo ""
+        echo "❌ Commit aborted due to banned words in message!"
+        echo "Please revise your commit message and try again."
+        exit 1
+    fi
+fi
+
 exit 0

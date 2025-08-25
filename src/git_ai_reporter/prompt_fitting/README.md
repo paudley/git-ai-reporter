@@ -66,9 +66,9 @@ This module is designed to replace all existing ad-hoc token management througho
 
 ## Data Integrity Guarantee
 
-This module enforces the mandatory rule from CLAUDE.md:
+This module enforces the mandatory project requirement:
 
-> **🚨 CRITICAL: NO DATA LOSS OPTIMIZATIONS ALLOWED 🚨**
+> **CRITICAL: NO DATA LOSS OPTIMIZATIONS ALLOWED**
 > 
 > **ABSOLUTE REQUIREMENT:** Every single commit MUST be analyzed in all cases
 

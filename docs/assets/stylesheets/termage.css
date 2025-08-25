@@ -1,0 +1,211 @@
+/* SPDX-License-Identifier: MIT */
+/* Termage Terminal Output Styling */
+
+/* Terminal Window Styling */
+.terminal-window {
+  background: #1e1e2e;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.terminal-header {
+  background: #11111b;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid #313244;
+}
+
+.terminal-button {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.terminal-close {
+  background: #f38ba8;
+}
+
+.terminal-minimize {
+  background: #f9e2af;
+}
+
+.terminal-maximize {
+  background: #a6e3a1;
+}
+
+.terminal-title {
+  flex: 1;
+  text-align: center;
+  color: #6c7086;
+  font-size: 0.75rem;
+  font-family: 'Roboto Mono', monospace;
+  letter-spacing: 0.025em;
+}
+
+/* Terminal Output Content */
+.terminal-window .termage-output,
+.terminal-window .language-termage {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #cdd6f4;
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Terminal Text Colors */
+.termage-output .prompt,
+.language-termage .prompt {
+  color: #89dceb;
+  font-weight: bold;
+}
+
+.termage-output .command,
+.language-termage .command {
+  color: #f5c2e7;
+}
+
+.termage-output .output,
+.language-termage .output {
+  color: #cdd6f4;
+}
+
+.termage-output .success,
+.language-termage .success {
+  color: #a6e3a1;
+}
+
+.termage-output .error,
+.language-termage .error {
+  color: #f38ba8;
+}
+
+.termage-output .warning,
+.language-termage .warning {
+  color: #f9e2af;
+}
+
+.termage-output .info,
+.language-termage .info {
+  color: #89b4fa;
+}
+
+/* Git AI Reporter Specific Terminal Colors */
+.termage-output .git-ai-emoji {
+  font-size: 1.1em;
+}
+
+.termage-output .git-ai-progress {
+  color: #cba6f7;
+}
+
+.termage-output .git-ai-analyzing {
+  color: #89dceb;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.termage-output .git-ai-complete {
+  color: #a6e3a1;
+  font-weight: bold;
+}
+
+/* Progress Bar in Terminal */
+.termage-progress-bar {
+  display: inline-block;
+  width: 200px;
+  height: 10px;
+  background: #313244;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 0 0.5rem;
+  vertical-align: middle;
+}
+
+.termage-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #89b4fa, #cba6f7);
+  transition: width 0.3s ease;
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px; }
+  100% { background-position: 200px; }
+}
+
+/* Scrollbar Styling for Terminal */
+.terminal-window ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.terminal-window ::-webkit-scrollbar-track {
+  background: #1e1e2e;
+}
+
+.terminal-window ::-webkit-scrollbar-thumb {
+  background: #45475a;
+  border-radius: 4px;
+}
+
+.terminal-window ::-webkit-scrollbar-thumb:hover {
+  background: #585b70;
+}
+
+/* Dark Theme Adjustments */
+[data-md-color-scheme="slate"] .terminal-window {
+  background: #11111b;
+}
+
+[data-md-color-scheme="slate"] .terminal-header {
+  background: #181825;
+  border-bottom-color: #45475a;
+}
+
+/* Light Theme Terminal (if needed) */
+[data-md-color-scheme="default"] .terminal-window {
+  background: #f5f5f5;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+[data-md-color-scheme="default"] .terminal-header {
+  background: #e0e0e0;
+  border-bottom-color: #cccccc;
+}
+
+[data-md-color-scheme="default"] .terminal-window .termage-output,
+[data-md-color-scheme="default"] .terminal-window .language-termage {
+  background: #ffffff;
+  color: #333333;
+}
+
+[data-md-color-scheme="default"] .terminal-title {
+  color: #666666;
+}
+
+/* Mobile Responsive */
+@media screen and (max-width: 768px) {
+  .terminal-window .termage-output,
+  .terminal-window .language-termage {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .termage-progress-bar {
+    width: 150px;
+  }
+}

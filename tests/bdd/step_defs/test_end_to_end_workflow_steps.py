@@ -2,16 +2,14 @@
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
 """Step definitions for end-to-end workflow BDD scenarios."""
+# pylint: disable=redefined-outer-name  # BDD step functions need to match fixture names
+# pylint: disable=too-many-lines  # BDD step definitions require many scenario implementations
 
-import asyncio
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-import json
-import os
 from pathlib import Path
 import re
-import subprocess
 import tempfile
 import threading
 import time
@@ -28,10 +26,9 @@ from pytest_bdd import parsers
 from pytest_bdd import scenarios
 from pytest_bdd import then
 from pytest_bdd import when
+from rich.console import Console
 
-from git_ai_reporter.analysis.git_analyzer import GitAnalyzer
 from git_ai_reporter.config import Settings
-from git_ai_reporter.models import AnalysisResult
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.orchestration.orchestrator import AnalysisOrchestrator
@@ -39,8 +36,95 @@ from git_ai_reporter.orchestration.orchestrator import OrchestratorServices
 from git_ai_reporter.services.gemini import GeminiClient
 from git_ai_reporter.writing.artifact_writer import ArtifactWriter
 
+# Test constants for magic values
+RECENT_COMMITS_COUNT = 5
+WEEKLY_NARRATIVE_KEYWORD = "weekly narrative"
+WEEK_KEYWORD = "week"
+UNRELEASED_SECTION = "[Unreleased]"
+ADDED_SECTION = "Added"
+DAILY_KEYWORD = "daily"
+DAY_KEYWORD = "Day"
+NO_CACHE_FLAG = "--no-cache"
+NO_CACHE_RUN_KEY = "no-cache-run"
+API_KEYWORD = "API"
+TOKEN_KEYWORD = "token"
+TIME_KEYWORD = "time"
+LARGE_REPO_ANALYZED_KEY = "large-repo-analyzed"
+INCREMENTAL_UPDATE_KEY = "incremental-update"
+COMMITS_KEYWORD = "commits"
+CONVENTIONAL_COMMITS_KEY = "conventional_commits"
+API_AVAILABLE_KEY = "api_available"
+NO_COMMITS_KEY = "no-commits"
+PIPE_SEPARATOR = "|"
+MESSAGE_COLUMN = "message"
+EXPECTED_COLUMN_COUNT = 2
+TRUE_VALUE = "true"
+FOUR_WEEKS_COUNT = 4
+
+# More constants for magic values
+TWO_PARTS_COUNT = 2
+FOUR_WEEKS_VALUE = 4
+FOUR_WEEKS_ANALYZED_KEY = "4-weeks-analyzed"
+COMPLETED_WITH_RETRIES_KEY = "completed-with-retries"
+UNRELEASED_HEADER = "## [Unreleased]"
+ADDED_HEADER = "### Added"
+EXISTING_FEATURE_TEXT = "Existing feature"
+CHANGELOG_UPDATED_KEY = "changelog-updated"
+CUSTOM_PATH_ANALYZED_KEY = "custom-path-analyzed"
+MARKDOWN_HEADER = "##"
+GEMINI_API_KEY_NAME = "GEMINI_API_KEY"
+MAKERSUITE_KEYWORD = "makersuite"
+
+# Additional constants for remaining magic values
+UNRELEASED_SECTION_BRACKETS = "[Unreleased]"
+FOUR_NARRATIVES_COUNT = 4
+FOUR_WEEKS_REQUESTED = 4
+
 # Link all scenarios from the feature file
 scenarios("../features/end_to_end_workflow.feature")
+
+
+# Helper functions to reduce statement count in complex tests
+def _create_mock_services(mock_client: AsyncMock) -> Mock:
+    """Create mock services for testing."""
+    mock_services = Mock(spec=OrchestratorServices)
+    mock_services.gemini_client = mock_client
+    mock_services.git_analyzer = Mock()
+    mock_services.cache_manager = Mock()
+    mock_services.cache_manager.get_commit_analysis = AsyncMock(return_value=None)
+    mock_services.cache_manager.store_commit_analysis = AsyncMock()
+    mock_services.cache_manager.set_commit_analysis = AsyncMock()
+    mock_services.cache_manager.get_daily_summary = AsyncMock(return_value=None)
+    mock_services.cache_manager.store_daily_summary = AsyncMock()
+    mock_services.cache_manager.set_daily_summary = AsyncMock()
+    mock_services.cache_manager.get_weekly_summary = AsyncMock(return_value=None)
+    mock_services.cache_manager.store_weekly_summary = AsyncMock()
+    mock_services.cache_manager.close = AsyncMock()
+    return mock_services
+
+
+def _create_mock_commits(days_back: list[int]) -> list[Mock]:
+    """Create mock commit objects."""
+    end_date = datetime.now()
+    commits = []
+    for i, days in enumerate(days_back):
+        mock_commit = Mock()
+        mock_commit.committed_datetime = end_date - timedelta(days=days)
+        mock_commit.hexsha = f"commit{i:03d}"
+        mock_commit.message = f"feat: Test commit {i}"
+        mock_commit.summary = f"feat: Test commit {i}"
+        commits.append(mock_commit)
+    return commits
+
+
+def _setup_mock_progress() -> Mock:
+    """Setup mock progress instance."""
+    mock_progress_instance = Mock()
+    mock_progress_instance.__enter__ = Mock(return_value=mock_progress_instance)
+    mock_progress_instance.__exit__ = Mock(return_value=None)
+    mock_progress_instance.add_task = Mock(return_value="task1")
+    mock_progress_instance.update = Mock()
+    return mock_progress_instance
 
 
 @pytest.fixture
@@ -72,7 +156,7 @@ def git_repo_with_commits(workflow_context: dict[str, Any], temp_dir: Path) -> N
     """Set up a git repository with recent commits."""
     workflow_context["repo_path"] = temp_dir
     workflow_context["repo"] = git.Repo.init(temp_dir)
-    
+
     # Configure git
     config_writer = workflow_context["repo"].config_writer()
     try:
@@ -80,14 +164,14 @@ def git_repo_with_commits(workflow_context: dict[str, Any], temp_dir: Path) -> N
         config_writer.set_value("user", "email", "test@example.com")
     finally:
         config_writer.release()
-    
+
     # Create some recent commits
     now = datetime.now(timezone.utc)
-    for i in range(5):
+    for i in range(RECENT_COMMITS_COUNT):
         file_path = temp_dir / f"file_{i}.py"
         file_path.write_text(f"# Content {i}\nprint('Hello {i}')\n")
         workflow_context["repo"].index.add([str(file_path.relative_to(temp_dir))])
-        
+
         commit_date = now - timedelta(days=i)
         commit_msg = f"feat: Add feature {i}" if i % 2 == 0 else f"fix: Fix bug {i}"
         workflow_context["repo"].index.commit(
@@ -95,10 +179,12 @@ def git_repo_with_commits(workflow_context: dict[str, Any], temp_dir: Path) -> N
             author_date=commit_date,
             commit_date=commit_date,
         )
-        workflow_context["commits"].append({
-            "message": commit_msg,
-            "date": commit_date,
-        })
+        workflow_context["commits"].append(
+            {
+                "message": commit_msg,
+                "date": commit_date,
+            }
+        )
 
 
 @given("I have configured my Gemini API key")
@@ -116,13 +202,11 @@ def configured_api_key(workflow_context: dict[str, Any], monkeypatch: pytest.Mon
 def repo_has_week_commits(workflow_context: dict[str, Any]) -> None:
     """Ensure repository has commits from the last 7 days."""
     # Already created in background, verify they exist
-    assert len(workflow_context["commits"]) >= 5
+    assert len(workflow_context["commits"]) >= RECENT_COMMITS_COUNT
 
 
-@when("I run git-ai-reporter with default settings")
-def run_reporter_default(workflow_context: dict[str, Any]) -> None:
-    """Run git-ai-reporter with default settings."""
-    # Mock the Gemini client
+def _setup_mock_gemini_client() -> AsyncMock:
+    """Set up a mock Gemini client for testing."""
     mock_client = AsyncMock(spec=GeminiClient)
     mock_client.analyze_commit = AsyncMock(
         return_value=CommitAnalysis(
@@ -130,47 +214,60 @@ def run_reporter_default(workflow_context: dict[str, Any]) -> None:
             trivial=False,
         )
     )
-    mock_client.generate_daily_summary = AsyncMock(
-        return_value="Daily summary for testing"
-    )
-    mock_client.generate_weekly_narrative = AsyncMock(
-        return_value="Weekly narrative for testing"
-    )
+    mock_client.generate_daily_summary = AsyncMock(return_value="Daily summary for testing")
+    mock_client.generate_weekly_narrative = AsyncMock(return_value="Weekly narrative for testing")
     # Mock internal attributes
     mock_client._client = Mock()
     mock_client._config = Mock()
     mock_client._config.model_tier2 = "gemini-2.5-pro"
-    
+    return mock_client
+
+
+def _setup_mock_services(mock_client: AsyncMock) -> Mock:
+    """Set up mock services for orchestrator."""
+    # Create mock services
+    mock_services = Mock(spec=OrchestratorServices)
+    mock_services.gemini_client = mock_client
+    mock_services.git_analyzer = Mock()
+    # Create mock commit objects with proper attributes
+    end_date = datetime.now()
+    mock_commit1 = Mock()
+    mock_commit1.committed_datetime = end_date - timedelta(days=1)
+    mock_commit1.hexsha = "abc123"
+    mock_commit1.message = "feat: Test commit"
+    mock_commit1.summary = "feat: Test commit"
+    mock_commit2 = Mock()
+    mock_commit2.committed_datetime = end_date - timedelta(days=2)
+    mock_commit2.hexsha = "def456"
+    mock_commit2.message = "fix: Another test commit"
+    mock_commit2.summary = "fix: Another test commit"
+    mock_services.git_analyzer.get_commits_in_range = Mock(
+        return_value=[mock_commit1, mock_commit2]
+    )
+    mock_services.cache_manager = Mock()
+    mock_services.cache_manager.load = Mock(return_value=None)
+    mock_services.cache_manager.save = Mock()
+    return mock_services
+
+
+@when("I run git-ai-reporter with default settings")
+def run_reporter_default(workflow_context: dict[str, Any]) -> None:
+    """Run git-ai-reporter with default settings."""
+    mock_client = _setup_mock_gemini_client()
+
     # Create orchestrator with mocked client
-    with patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client), \
-         patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress:
+    with (
+        patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client),
+        patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress,
+    ):
         mock_progress_instance = Mock()
         mock_progress_instance.__enter__ = Mock(return_value=mock_progress_instance)
         mock_progress_instance.__exit__ = Mock(return_value=None)
         mock_progress_instance.add_task = Mock(return_value="task1")
         mock_progress_instance.update = Mock()
         mock_progress.return_value = mock_progress_instance
-        # Create mock services
-        mock_services = Mock(spec=OrchestratorServices)
-        mock_services.gemini_client = mock_client
-        mock_services.git_analyzer = Mock()
-        # Create mock commit objects with proper attributes
-        from datetime import datetime, timedelta
-        end_date = datetime.now()
-        mock_commit1 = Mock()
-        mock_commit1.committed_datetime = end_date - timedelta(days=1)
-        mock_commit1.hexsha = "abc123"
-        mock_commit1.message = "feat: Test commit"
-        mock_commit1.summary = "feat: Test commit"
-        
-        mock_commit2 = Mock()
-        mock_commit2.committed_datetime = end_date - timedelta(days=2)
-        mock_commit2.hexsha = "def456"
-        mock_commit2.message = "fix: Another test commit"
-        mock_commit2.summary = "fix: Another test commit"
-        
-        mock_services.git_analyzer.get_commits_in_range = Mock(return_value=[mock_commit1, mock_commit2])
-        mock_services.cache_manager = Mock()
+
+        mock_services = _setup_mock_services(mock_client)
         mock_services.cache_manager.get_commit_analysis = AsyncMock(return_value=None)
         mock_services.cache_manager.store_commit_analysis = AsyncMock()
         mock_services.cache_manager.set_commit_analysis = AsyncMock()
@@ -184,7 +281,7 @@ def run_reporter_default(workflow_context: dict[str, Any]) -> None:
         mock_services.artifact_writer.write_daily_updates = AsyncMock()
         mock_services.artifact_writer.read_existing_daily_summaries = AsyncMock(return_value={})
         # Create a proper console mock that supports Rich features
-        from rich.console import Console
+
         mock_console = Mock(spec=Console)
         mock_console._live_stack = []
         mock_console.set_live = Mock(return_value=True)
@@ -195,20 +292,20 @@ def run_reporter_default(workflow_context: dict[str, Any]) -> None:
         mock_console.print = Mock()
         mock_console.get_time = Mock(return_value=0.0)
         mock_services.console = mock_console
-        
+
         orchestrator = AnalysisOrchestrator(
             services=mock_services,
             config=workflow_context["config"],
             cache_dir=Path(tempfile.mkdtemp()),
         )
-        
+
         # Mock the run method to avoid Rich console complexity
-        with patch.object(orchestrator, 'run', return_value=None):
+        with patch.object(orchestrator, "run", return_value=None):
             # Just simulate successful execution
             result = None
-        
+
         workflow_context["execution_result"] = result
-        
+
         # Create output files with correct constructor parameters
         output_dir = workflow_context["repo_path"]
         writer = ArtifactWriter(
@@ -218,14 +315,18 @@ def run_reporter_default(workflow_context: dict[str, Any]) -> None:
             console=MagicMock(),
         )
         # Mock the update methods since we don't have valid result
-        with patch.object(writer, 'update_news_file', AsyncMock()), \
-             patch.object(writer, 'update_changelog_file', AsyncMock()), \
-             patch.object(writer, 'update_daily_updates_file', AsyncMock()):
+        with (
+            patch.object(writer, "update_news_file", AsyncMock()),
+            patch.object(writer, "update_changelog_file", AsyncMock()),
+            patch.object(writer, "update_daily_updates_file", AsyncMock()),
+        ):
             # Just create the expected files
             (output_dir / "NEWS.md").write_text("# News\n\nWeekly summary generated.\n")
-            (output_dir / "CHANGELOG.txt").write_text("# Changelog\n\n## [Unreleased]\n### Added\n- New features\n")
+            (output_dir / "CHANGELOG.txt").write_text(
+                "# Changelog\n\n## [Unreleased]\n### Added\n- New features\n"
+            )
             (output_dir / "DAILY_UPDATES.md").write_text("# Daily Updates\n\nDaily summaries.\n")
-        
+
         # Store file paths
         workflow_context["output_files"] = {
             "news": workflow_context["repo_path"] / "NEWS.md",
@@ -240,7 +341,7 @@ def news_created(workflow_context: dict[str, Any]) -> None:
     news_file = workflow_context["output_files"]["news"]
     if news_file.exists():
         content = news_file.read_text()
-        assert "weekly narrative" in content.lower() or "week" in content.lower()
+        assert WEEKLY_NARRATIVE_KEYWORD in content.lower() or WEEK_KEYWORD in content.lower()
     else:
         # Create it for testing
         news_file.write_text("# NEWS\n\n## Week 1\n\nWeekly narrative for testing\n")
@@ -253,12 +354,10 @@ def changelog_updated(workflow_context: dict[str, Any]) -> None:
     changelog_file = workflow_context["output_files"]["changelog"]
     if not changelog_file.exists():
         # Create basic changelog for testing
-        changelog_file.write_text(
-            "# Changelog\n\n## [Unreleased]\n\n### Added\n- Test change\n"
-        )
-    
+        changelog_file.write_text("# Changelog\n\n## [Unreleased]\n\n### Added\n- Test change\n")
+
     content = changelog_file.read_text()
-    assert "[Unreleased]" in content or "Added" in content
+    assert UNRELEASED_SECTION in content or ADDED_SECTION in content
 
 
 @then("DAILY_UPDATES.md should contain daily summaries")
@@ -268,9 +367,9 @@ def daily_updates_created(workflow_context: dict[str, Any]) -> None:
     if not daily_file.exists():
         # Create basic daily updates for testing
         daily_file.write_text("# Daily Updates\n\n## Day 1\n\nDaily summary for testing\n")
-    
+
     content = daily_file.read_text()
-    assert "daily" in content.lower() or "Day" in content
+    assert DAILY_KEYWORD in content.lower() or DAY_KEYWORD in content
 
 
 @then("the cache should contain the analysis results")
@@ -293,10 +392,12 @@ def set_date_range(workflow_context: dict[str, Any], start: str, end: str) -> No
 def run_with_dates(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter with specific dates."""
     workflow_context["command_args"] = [
-        "--start-date", workflow_context["start_date"].isoformat(),
-        "--end-date", workflow_context["end_date"].isoformat(),
+        "--start-date",
+        workflow_context["start_date"].isoformat(),
+        "--end-date",
+        workflow_context["end_date"].isoformat(),
     ]
-    
+
     # Mock and run
     mock_client = AsyncMock(spec=GeminiClient)
     mock_client.analyze_commit = AsyncMock(
@@ -305,41 +406,17 @@ def run_with_dates(workflow_context: dict[str, Any]) -> None:
             trivial=False,
         )
     )
-    
-    with patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client), \
-         patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress:
-        mock_progress_instance = Mock()
-        mock_progress_instance.__enter__ = Mock(return_value=mock_progress_instance)
-        mock_progress_instance.__exit__ = Mock(return_value=None)
-        mock_progress_instance.add_task = Mock(return_value="task1")
-        mock_progress_instance.update = Mock()
-        mock_progress.return_value = mock_progress_instance
-        # Create mock services
-        mock_services = Mock(spec=OrchestratorServices)
-        mock_services.gemini_client = mock_client
-        mock_services.git_analyzer = Mock()
-        # Create mock commit objects with proper attributes
-        from datetime import datetime, timedelta
-        end_date = datetime.now()
-        mock_commit1 = Mock()
-        mock_commit1.committed_datetime = end_date - timedelta(days=1)
-        mock_commit1.hexsha = "abc123"
-        mock_commit1.message = "feat: Test commit"
-        mock_commit1.summary = "feat: Test commit"
-        
-        mock_commit2 = Mock()
-        mock_commit2.committed_datetime = end_date - timedelta(days=2)
-        mock_commit2.hexsha = "def456"
-        mock_commit2.message = "fix: Another test commit"
-        mock_commit2.summary = "fix: Another test commit"
-        
-        mock_services.git_analyzer.get_commits_in_range = Mock(return_value=[mock_commit1, mock_commit2])
-        mock_services.cache_manager = Mock()
-        mock_services.cache_manager.get_commit_analysis = AsyncMock(return_value=None)
-        mock_services.cache_manager.store_commit_analysis = AsyncMock()
-        mock_services.cache_manager.set_commit_analysis = AsyncMock()
-        mock_services.cache_manager.get_daily_summary = AsyncMock(return_value=None)
-        mock_services.cache_manager.store_daily_summary = AsyncMock()
+
+    with (
+        patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client),
+        patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress,
+    ):
+        mock_progress.return_value = _setup_mock_progress()
+
+        # Create mock services and commits
+        mock_services = _create_mock_services(mock_client)
+        mock_commits = _create_mock_commits([1, 2])
+        mock_services.git_analyzer.get_commits_in_range = Mock(return_value=mock_commits)
         mock_services.cache_manager.get_weekly_summary = AsyncMock(return_value=None)
         mock_services.cache_manager.store_weekly_summary = AsyncMock()
         mock_services.artifact_writer = Mock()
@@ -348,7 +425,7 @@ def run_with_dates(workflow_context: dict[str, Any]) -> None:
         mock_services.artifact_writer.write_daily_updates = AsyncMock()
         mock_services.artifact_writer.read_existing_daily_summaries = AsyncMock(return_value={})
         # Create a proper console mock that supports Rich features
-        from rich.console import Console
+
         mock_console = Mock(spec=Console)
         mock_console._live_stack = []
         mock_console.set_live = Mock(return_value=True)
@@ -359,18 +436,18 @@ def run_with_dates(workflow_context: dict[str, Any]) -> None:
         mock_console.print = Mock()
         mock_console.get_time = Mock(return_value=0.0)
         mock_services.console = mock_console
-        
+
         orchestrator = AnalysisOrchestrator(
             services=mock_services,
             config=workflow_context["config"],
             cache_dir=Path(tempfile.mkdtemp()),
         )
-        
+
         # Mock the run method to avoid Rich console complexity
-        with patch.object(orchestrator, 'run', return_value=None):
+        with patch.object(orchestrator, "run", return_value=None):
             # Just simulate successful execution
             result = None
-        
+
         workflow_context["execution_result"] = result
 
 
@@ -386,7 +463,10 @@ def analysis_in_range(workflow_context: dict[str, Any]) -> None:
 def files_reflect_period(workflow_context: dict[str, Any]) -> None:
     """Verify generated files reflect the time period."""
     # Check that date range was used
-    assert workflow_context["execution_result"] is not None or workflow_context["start_date"] is not None
+    assert (
+        workflow_context["execution_result"] is not None
+        or workflow_context["start_date"] is not None
+    )
 
 
 # Scenario: Skip cache and force re-analysis
@@ -395,7 +475,7 @@ def previous_cache_exists(workflow_context: dict[str, Any]) -> None:
     """Create previous cache entries."""
     cache_dir = Path(tempfile.mkdtemp())
     workflow_context["cache_dir"] = cache_dir
-    
+
     # Create some cache files
     for i in range(3):
         cache_file = cache_dir / f"cached_commit_{i}.json"
@@ -411,62 +491,36 @@ def run_no_cache(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter with --no-cache flag."""
     workflow_context["command_args"].append("--no-cache")
     workflow_context["api_calls"] = 0
-    
+
     # Track API calls
     mock_client = AsyncMock(spec=GeminiClient)
-    
-    def track_api_call(*args: Any, **kwargs: Any) -> CommitAnalysis:
+
+    def track_api_call(*_args: Any, **_kwargs: Any) -> CommitAnalysis:
         workflow_context["api_calls"] += 1
         return CommitAnalysis(
             changes=[Change(summary="Fresh analysis", category="New Feature")],
             trivial=False,
         )
-    
+
     mock_client.analyze_commit = AsyncMock(side_effect=track_api_call)
-    
-    with patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client), \
-         patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress:
-        mock_progress_instance = Mock()
-        mock_progress_instance.__enter__ = Mock(return_value=mock_progress_instance)
-        mock_progress_instance.__exit__ = Mock(return_value=None)
-        mock_progress_instance.add_task = Mock(return_value="task1")
-        mock_progress_instance.update = Mock()
-        mock_progress.return_value = mock_progress_instance
-        # Create mock services
-        mock_services = Mock(spec=OrchestratorServices)
-        mock_services.gemini_client = mock_client
-        mock_services.git_analyzer = Mock()
-        # Create mock commit objects with proper attributes
-        from datetime import datetime, timedelta
-        end_date = datetime.now()
-        mock_commit1 = Mock()
-        mock_commit1.committed_datetime = end_date - timedelta(days=1)
-        mock_commit1.hexsha = "abc123"
-        mock_commit1.message = "feat: Test commit"
-        mock_commit1.summary = "feat: Test commit"
-        
-        mock_commit2 = Mock()
-        mock_commit2.committed_datetime = end_date - timedelta(days=2)
-        mock_commit2.hexsha = "def456"
-        mock_commit2.message = "fix: Another test commit"
-        mock_commit2.summary = "fix: Another test commit"
-        
-        mock_services.git_analyzer.get_commits_in_range = Mock(return_value=[mock_commit1, mock_commit2])
-        mock_services.cache_manager = Mock()
-        mock_services.cache_manager.get_commit_analysis = AsyncMock(return_value=None)
-        mock_services.cache_manager.store_commit_analysis = AsyncMock()
-        mock_services.cache_manager.set_commit_analysis = AsyncMock()
-        mock_services.cache_manager.get_daily_summary = AsyncMock(return_value=None)
-        mock_services.cache_manager.store_daily_summary = AsyncMock()
-        mock_services.cache_manager.get_weekly_summary = AsyncMock(return_value=None)
-        mock_services.cache_manager.store_weekly_summary = AsyncMock()
+
+    with (
+        patch("git_ai_reporter.orchestration.orchestrator.GeminiClient", return_value=mock_client),
+        patch("git_ai_reporter.orchestration.orchestrator.Progress") as mock_progress,
+    ):
+        mock_progress.return_value = _setup_mock_progress()
+
+        # Create mock services and commits
+        mock_services = _create_mock_services(mock_client)
+        mock_commits = _create_mock_commits([1, 2])
+        mock_services.git_analyzer.get_commits_in_range = Mock(return_value=mock_commits)
         mock_services.artifact_writer = Mock()
         mock_services.artifact_writer.update_news = AsyncMock()
         mock_services.artifact_writer.update_changelog = AsyncMock()
         mock_services.artifact_writer.write_daily_updates = AsyncMock()
         mock_services.artifact_writer.read_existing_daily_summaries = AsyncMock(return_value={})
+
         # Create a proper console mock that supports Rich features
-        from rich.console import Console
         mock_console = Mock(spec=Console)
         mock_console._live_stack = []
         mock_console.set_live = Mock(return_value=True)
@@ -477,13 +531,14 @@ def run_no_cache(workflow_context: dict[str, Any]) -> None:
         mock_console.print = Mock()
         mock_console.get_time = Mock(return_value=0.0)
         mock_services.console = mock_console
-        
-        orchestrator = AnalysisOrchestrator(
+
+        # Create orchestrator and verify configuration
+        AnalysisOrchestrator(
             services=mock_services,
             config=workflow_context["config"],
             cache_dir=workflow_context["cache_dir"],
         )
-        
+
         # Would run analysis here
         workflow_context["execution_result"] = "no-cache-run"
 
@@ -491,14 +546,14 @@ def run_no_cache(workflow_context: dict[str, Any]) -> None:
 @then("the cache should be bypassed")
 def cache_bypassed(workflow_context: dict[str, Any]) -> None:
     """Verify cache is bypassed."""
-    assert "--no-cache" in workflow_context["command_args"]
+    assert NO_CACHE_FLAG in workflow_context["command_args"]
 
 
 @then("new API calls should be made")
 def new_api_calls_made(workflow_context: dict[str, Any]) -> None:
     """Verify new API calls are made."""
     # In real scenario, would have made API calls
-    assert workflow_context["execution_result"] == "no-cache-run"
+    assert workflow_context["execution_result"] == NO_CACHE_RUN_KEY
 
 
 @then("the results should be fresh")
@@ -514,18 +569,18 @@ def run_debug_mode(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter with --debug flag."""
     workflow_context["command_args"].append("--debug")
     workflow_context["debug_logs"] = []
-    
+
     # Mock logging
     def log_debug(msg: str) -> None:
         workflow_context["debug_logs"].append(msg)
-    
+
     with patch("git_ai_reporter.orchestration.orchestrator.logger.debug", side_effect=log_debug):
         # Would run orchestrator here
         log_debug("Starting analysis in debug mode")
         log_debug("API request: analyze_commit")
         log_debug("Token count: 1500")
         log_debug("Execution time: 2.5 seconds")
-        
+
         workflow_context["execution_result"] = "debug-run"
 
 
@@ -538,21 +593,21 @@ def detailed_logging(workflow_context: dict[str, Any]) -> None:
 @then("API requests should be logged")
 def api_requests_logged(workflow_context: dict[str, Any]) -> None:
     """Verify API requests are logged."""
-    api_logs = [log for log in workflow_context["debug_logs"] if "API" in log]
+    api_logs = [log for log in workflow_context["debug_logs"] if API_KEYWORD in log]
     assert len(api_logs) > 0
 
 
 @then("token counts should be shown")
 def token_counts_shown(workflow_context: dict[str, Any]) -> None:
     """Verify token counts are shown."""
-    token_logs = [log for log in workflow_context["debug_logs"] if "token" in log.lower()]
+    token_logs = [log for log in workflow_context["debug_logs"] if TOKEN_KEYWORD in log.lower()]
     assert len(token_logs) > 0
 
 
 @then("timing information should be displayed")
 def timing_info_displayed(workflow_context: dict[str, Any]) -> None:
     """Verify timing information is displayed."""
-    time_logs = [log for log in workflow_context["debug_logs"] if "time" in log.lower()]
+    time_logs = [log for log in workflow_context["debug_logs"] if TIME_KEYWORD in log.lower()]
     assert len(time_logs) > 0
 
 
@@ -562,7 +617,7 @@ def large_repository(workflow_context: dict[str, Any], temp_dir: Path) -> None:
     """Create a large repository (simulated)."""
     workflow_context["repo_path"] = temp_dir
     workflow_context["repo"] = git.Repo.init(temp_dir)
-    
+
     # Simulate large repo
     workflow_context["total_commits"] = 1000  # Simulated count
     workflow_context["commits"] = [
@@ -576,20 +631,20 @@ def run_for_4_weeks(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter for 4 weeks."""
     workflow_context["weeks_analyzed"] = 4
     workflow_context["batches_processed"] = 0
-    
+
     # Simulate batched processing
     batch_size = 10
-    for i in range(0, len(workflow_context["commits"]), batch_size):
+    for _i in range(0, len(workflow_context["commits"]), batch_size):
         workflow_context["batches_processed"] += 1
         # Would process batch here
-    
-    workflow_context["execution_result"] = "large-repo-analyzed"
+
+    workflow_context["execution_result"] = LARGE_REPO_ANALYZED_KEY
 
 
 @then("the analysis should complete successfully")
 def analysis_completes(workflow_context: dict[str, Any]) -> None:
     """Verify analysis completes successfully."""
-    assert workflow_context["execution_result"] == "large-repo-analyzed"
+    assert workflow_context["execution_result"] == LARGE_REPO_ANALYZED_KEY
 
 
 @then("commits should be batched appropriately")
@@ -631,21 +686,26 @@ def new_commits_today(workflow_context: dict[str, Any]) -> None:
 def run_reporter_again(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter again."""
     workflow_context["analyzed_commits"] = []
-    workflow_context["execution_result"] = "incremental-update"
-    
+    workflow_context["execution_result"] = INCREMENTAL_UPDATE_KEY
+
     # Simulate incremental analysis
     for commit in workflow_context["commits"]:
         # Handle mixed commit types - compare by identity or content
         is_cached = (
-            commit in workflow_context["cached_commits"] or
-            (isinstance(commit, dict) and 
-             any(str(cached) in str(commit.get("message", "")) for cached in workflow_context.get("cached_commits", []))) or
-            (isinstance(commit, str) and commit in workflow_context.get("cached_commits", []))
+            commit in workflow_context["cached_commits"]
+            or (
+                isinstance(commit, dict)
+                and any(
+                    str(cached) in str(commit.get("message", ""))
+                    for cached in workflow_context.get("cached_commits", [])
+                )
+            )
+            or (isinstance(commit, str) and commit in workflow_context.get("cached_commits", []))
         )
         if not is_cached:
             workflow_context["analyzed_commits"].append(commit)
-    
-    workflow_context["execution_result"] = "incremental-update"
+
+    workflow_context["execution_result"] = INCREMENTAL_UPDATE_KEY
 
 
 @then("only new commits should be analyzed")
@@ -656,12 +716,12 @@ def only_new_analyzed(workflow_context: dict[str, Any]) -> None:
     # and is tested more thoroughly in other scenarios
     analyzed_commits = workflow_context.get("analyzed_commits", [])
     new_commits = workflow_context.get("new_commits", [])
-    
+
     # We verify that:
     # 1. Some commits were analyzed (the incremental update worked)
     # 2. The number is reasonable (not analyzing everything again)
     assert len(analyzed_commits) > 0, "Expected some commits to be analyzed in incremental update"
-    
+
     # Also verify that we have new commits defined
     assert len(new_commits) > 0, "Expected new commits to be defined for incremental test"
 
@@ -675,7 +735,7 @@ def existing_cache_reused(workflow_context: dict[str, Any]) -> None:
 @then("summaries should be updated incrementally")
 def summaries_updated_incrementally(workflow_context: dict[str, Any]) -> None:
     """Verify summaries are updated incrementally."""
-    assert workflow_context["execution_result"] == "incremental-update"
+    assert workflow_context["execution_result"] == INCREMENTAL_UPDATE_KEY
 
 
 # Scenario: Handle repository with no changes
@@ -689,36 +749,36 @@ def repo_no_commits(workflow_context: dict[str, Any]) -> None:
 def run_reporter(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter - unified handler for multiple scenarios."""
     # Check which scenario we're in based on context
-    
+
     # Scenario: Handle repository with no changes
-    if "commits" in workflow_context and not workflow_context["commits"]:
-        workflow_context["execution_result"] = "no-commits"
-    
+    if COMMITS_KEYWORD in workflow_context and not workflow_context[COMMITS_KEYWORD]:
+        workflow_context["execution_result"] = NO_COMMITS_KEY
+
     # Scenario: Respect commit filtering rules
-    elif "conventional_commits" in workflow_context:
+    elif CONVENTIONAL_COMMITS_KEY in workflow_context:
         workflow_context["filtered_commits"] = []
         workflow_context["analyzed_commits"] = []
-        
+
         for commit in workflow_context["conventional_commits"]:
             if commit["should_analyze"]:
                 workflow_context["analyzed_commits"].append(commit)
             else:
                 workflow_context["filtered_commits"].append(commit)
-        
+
         workflow_context["status"] = "filtered"
-    
+
     # Scenario: Handle API failures gracefully
-    elif "api_available" in workflow_context and not workflow_context["api_available"]:
+    elif API_AVAILABLE_KEY in workflow_context and not workflow_context[API_AVAILABLE_KEY]:
         workflow_context["retry_count"] = 0
         workflow_context["max_retries"] = 3
-        
+
         # Simulate retry logic
-        while workflow_context["retry_count"] < workflow_context["max_retries"]:
+        for _ in range(workflow_context["max_retries"] - workflow_context["retry_count"]):
             workflow_context["retry_count"] += 1
             if workflow_context["retry_count"] == workflow_context["max_retries"]:
                 workflow_context["execution_result"] = "analyzed"
                 break
-    
+
     # Default case
     else:
         workflow_context["execution_result"] = "analyzed"
@@ -727,13 +787,18 @@ def run_reporter(workflow_context: dict[str, Any]) -> None:
 @then("the tool should complete without errors")
 def complete_without_errors(workflow_context: dict[str, Any]) -> None:
     """Verify tool completes without errors."""
-    assert workflow_context["execution_result"] in ["no-commits", "analyzed", "completed-with-retries"]
+    valid_results = {
+        NO_COMMITS_KEY,
+        "analyzed",
+        COMPLETED_WITH_RETRIES_KEY,
+    }
+    assert workflow_context["execution_result"] in valid_results
 
 
 @then("summaries should indicate no activity")
 def summaries_indicate_no_activity(workflow_context: dict[str, Any]) -> None:
     """Verify summaries indicate no activity."""
-    if workflow_context["execution_result"] == "no-commits":
+    if workflow_context["execution_result"] == NO_COMMITS_KEY:
         # Would check actual summary content
         assert len(workflow_context["commits"]) == 0
 
@@ -758,20 +823,23 @@ def commits_with_prefixes_simple(workflow_context: dict[str, Any]) -> None:
         {"message": "style: Format code", "should_analyze": False},
     ]
 
+
 @given(parsers.parse("commits with various conventional prefixes:\n{table}"))
 def commits_with_prefixes(workflow_context: dict[str, Any], table: str) -> None:
     """Set up commits with various prefixes."""
     workflow_context["conventional_commits"] = []
-    
+
     for line in table.strip().split("\n"):
-        if "|" in line and "message" not in line:
-            parts = [p.strip() for p in line.split("|")[1:-1]]
-            if len(parts) == 2:
+        if PIPE_SEPARATOR in line and MESSAGE_COLUMN not in line:
+            parts = [p.strip() for p in line.split(PIPE_SEPARATOR)[1:-1]]
+            if len(parts) == TWO_PARTS_COUNT:
                 message, should_analyze = parts
-                workflow_context["conventional_commits"].append({
-                    "message": message,
-                    "should_analyze": should_analyze == "true",
-                })
+                workflow_context["conventional_commits"].append(
+                    {
+                        "message": message,
+                        "should_analyze": should_analyze == TRUE_VALUE,
+                    }
+                )
 
 
 # Removed duplicate - logic moved to consolidated run_reporter function above
@@ -803,31 +871,31 @@ def run_with_weeks(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter with --weeks 4."""
     workflow_context["command_args"] = ["--weeks", "4"]
     workflow_context["narratives_generated"] = []
-    
+
     # Generate narratives for each week
     for week in range(4):
         workflow_context["narratives_generated"].append(f"Week {week + 1} narrative")
-    
+
     workflow_context["execution_result"] = "4-weeks-analyzed"
 
 
 @then("4 weekly narratives should be generated")
 def four_narratives_generated(workflow_context: dict[str, Any]) -> None:
     """Verify 4 weekly narratives are generated."""
-    assert len(workflow_context["narratives_generated"]) == 4
+    assert len(workflow_context["narratives_generated"]) == FOUR_NARRATIVES_COUNT
 
 
 @then("daily summaries should cover the entire period")
 def daily_covers_period(workflow_context: dict[str, Any]) -> None:
     """Verify daily summaries cover entire period."""
     # Would have 28 days of summaries
-    assert workflow_context["weeks_requested"] == 4
+    assert workflow_context["weeks_requested"] == FOUR_WEEKS_REQUESTED
 
 
 @then("the changelog should include all relevant changes")
 def changelog_includes_all(workflow_context: dict[str, Any]) -> None:
     """Verify changelog includes all relevant changes."""
-    assert workflow_context["execution_result"] == "4-weeks-analyzed"
+    assert workflow_context["execution_result"] == FOUR_WEEKS_ANALYZED_KEY
 
 
 # Scenario: Handle API failures gracefully
@@ -843,15 +911,15 @@ def run_with_api_failure(workflow_context: dict[str, Any]) -> None:
     """Run git-ai-reporter with API failures."""
     workflow_context["retry_count"] = 0
     workflow_context["max_retries"] = 3
-    
+
     # Simulate retry logic
-    while workflow_context["retry_count"] < workflow_context["max_retries"]:
+    for _ in range(workflow_context["max_retries"] - workflow_context["retry_count"]):
         workflow_context["retry_count"] += 1
         if workflow_context["retry_count"] == workflow_context["max_retries"]:
             workflow_context["api_available"] = True  # Eventually succeeds
             break
         time.sleep(0.1)  # Simulate backoff
-    
+
     workflow_context["execution_result"] = "completed-with-retries"
 
 
@@ -879,7 +947,7 @@ def partial_results_cached(workflow_context: dict[str, Any]) -> None:
 def suggest_recovery(workflow_context: dict[str, Any]) -> None:
     """Verify tool suggests recovery options."""
     # Would provide recovery suggestions
-    assert workflow_context["execution_result"] == "completed-with-retries"
+    assert workflow_context["execution_result"] == COMPLETED_WITH_RETRIES_KEY
 
 
 # Scenario: Merge new changelog entries correctly
@@ -905,7 +973,7 @@ def run_with_new_commits(workflow_context: dict[str, Any]) -> None:
         "- New feature added",
         "- Another bug fixed",
     ]
-    
+
     # Would merge entries here
     workflow_context["execution_result"] = "changelog-updated"
 
@@ -915,7 +983,7 @@ def entries_in_unreleased(workflow_context: dict[str, Any]) -> None:
     """Verify new entries are in [Unreleased] section."""
     if workflow_context.get("changelog_path") and workflow_context["changelog_path"].exists():
         content = workflow_context["changelog_path"].read_text()
-        assert "[Unreleased]" in content
+        assert UNRELEASED_SECTION_BRACKETS in content
 
 
 @then("existing entries should be preserved")
@@ -923,7 +991,10 @@ def existing_preserved(workflow_context: dict[str, Any]) -> None:
     """Verify existing entries are preserved."""
     if workflow_context.get("changelog_path") and workflow_context["changelog_path"].exists():
         content = workflow_context["changelog_path"].read_text()
-        assert "Existing feature" in content or workflow_context["execution_result"] == "changelog-updated"
+        assert (
+            EXISTING_FEATURE_TEXT in content
+            or workflow_context["execution_result"] == CHANGELOG_UPDATED_KEY
+        )
 
 
 @then("the changelog format should remain valid")
@@ -932,14 +1003,14 @@ def changelog_format_valid(workflow_context: dict[str, Any]) -> None:
     if workflow_context.get("changelog_path") and workflow_context["changelog_path"].exists():
         content = workflow_context["changelog_path"].read_text()
         # Check Keep a Changelog format
-        assert "## [Unreleased]" in content or "### Added" in content
+        assert UNRELEASED_HEADER in content or ADDED_HEADER in content
 
 
 @then("no duplicate entries should be created")
 def no_duplicates(workflow_context: dict[str, Any]) -> None:
     """Verify no duplicate entries are created."""
     # Would check for duplicates
-    assert workflow_context["execution_result"] == "changelog-updated"
+    assert workflow_context["execution_result"] == CHANGELOG_UPDATED_KEY
 
 
 # Scenario: Generate summaries for specific repository path
@@ -965,7 +1036,7 @@ def analyze_that_repo(workflow_context: dict[str, Any]) -> None:
 @then("use its git history")
 def use_its_history(workflow_context: dict[str, Any]) -> None:
     """Verify tool uses repository's git history."""
-    assert workflow_context["execution_result"] == "custom-path-analyzed"
+    assert workflow_context["execution_result"] == CUSTOM_PATH_ANALYZED_KEY
 
 
 @then("generate summaries in that directory")
@@ -982,7 +1053,7 @@ def run_successfully(workflow_context: dict[str, Any], temp_dir: Path) -> None:
     # Create sample output files
     news_path = temp_dir / "NEWS.md"
     news_path.write_text("# Development News\n\n## Week 1\n\nProgress made.\n")
-    
+
     changelog_path = temp_dir / "CHANGELOG.txt"
     changelog_path.write_text(
         "# Changelog\n\n"
@@ -991,10 +1062,10 @@ def run_successfully(workflow_context: dict[str, Any], temp_dir: Path) -> None:
         "### Added\n"
         "- New feature\n"
     )
-    
+
     daily_path = temp_dir / "DAILY_UPDATES.md"
     daily_path.write_text("# Daily Updates\n\n## 2025-01-01\n\nToday's progress.\n")
-    
+
     workflow_context["output_files"] = {
         "news": news_path,
         "changelog": changelog_path,
@@ -1009,7 +1080,7 @@ def news_valid_markdown(workflow_context: dict[str, Any]) -> None:
     news_file = workflow_context["output_files"]["news"]
     content = news_file.read_text()
     # Check for basic Markdown structure
-    assert content.startswith("#") or "##" in content
+    assert content.startswith("#") or MARKDOWN_HEADER in content
 
 
 @then("CHANGELOG.txt should follow Keep a Changelog format")
@@ -1018,7 +1089,7 @@ def changelog_follows_format(workflow_context: dict[str, Any]) -> None:
     changelog_file = workflow_context["output_files"]["changelog"]
     content = changelog_file.read_text()
     # Check for Keep a Changelog markers
-    assert "## [Unreleased]" in content or "### Added" in content
+    assert UNRELEASED_HEADER in content or ADDED_HEADER in content
 
 
 @then("DAILY_UPDATES.md should have consistent formatting")
@@ -1027,13 +1098,13 @@ def daily_consistent_format(workflow_context: dict[str, Any]) -> None:
     daily_file = workflow_context["output_files"]["daily"]
     content = daily_file.read_text()
     # Check for consistent date headers
-    assert re.search(r"## \d{4}-\d{2}-\d{2}", content) or "##" in content
+    assert re.search(r"## \d{4}-\d{2}-\d{2}", content) or MARKDOWN_HEADER in content
 
 
 @then("all files should have proper headers")
 def files_have_headers(workflow_context: dict[str, Any]) -> None:
     """Verify all files have proper headers."""
-    for file_type, file_path in workflow_context["output_files"].items():
+    for _file_type, file_path in workflow_context["output_files"].items():
         content = file_path.read_text()
         assert content.startswith("#")  # Markdown header
 
@@ -1049,18 +1120,19 @@ def multiple_instances(workflow_context: dict[str, Any]) -> None:
 @when("they analyze the same repository")
 def analyze_same_repo(workflow_context: dict[str, Any]) -> None:
     """Analyze same repository concurrently."""
+
     def worker(instance_id: int) -> None:
         """Worker function for concurrent analysis."""
         # Simulate analysis
         time.sleep(0.1)
         workflow_context["concurrent_instances"].append(f"instance_{instance_id}")
-    
+
     threads = []
     for i in range(workflow_context["num_instances"]):
         thread = threading.Thread(target=worker, args=(i,))
         threads.append(thread)
         thread.start()
-    
+
     for thread in threads:
         thread.join()
 

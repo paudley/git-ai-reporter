@@ -5,7 +5,7 @@
 
 This module provides a comprehensive plugin system that allows for
 dynamic registration and discovery of custom fitting strategies while
-maintaining strict data integrity requirements from CLAUDE.md.
+maintaining strict data integrity requirements.
 """
 
 from abc import ABC
@@ -233,7 +233,7 @@ class BasePlugin(ABC):
             test_content = "This is a test content for plugin validation."
             result = await fitter.fit_content(test_content, 100)
 
-            # CLAUDE.md compliance check: data must be preserved
+            # Project compliance check: data must be preserved
             if not result.data_preserved:
                 validation_errors.append("violates data integrity requirement")
 
@@ -259,7 +259,7 @@ class PluginRegistry:
         self.logger = get_logger("PluginRegistry")
         self._discovery_paths: list[Path] = []
         self._auto_discovery_enabled = True
-        self._strict_mode = True  # Enforce CLAUDE.md data integrity requirements
+        self._strict_mode = True  # Enforce project data integrity requirements
 
     def register_plugin(
         self, plugin_class: type[PluginInterface], force_override: bool = False
@@ -326,11 +326,11 @@ class PluginRegistry:
             )
             return False
 
-        # CLAUDE.md compliance check
+        # Project compliance check
         if self._strict_mode and not metadata.capabilities.data_integrity_certified:
             self.logger.error(
                 f"Plugin {metadata.info.name} is not certified for data integrity. "
-                f"This violates CLAUDE.md requirements in strict mode."
+                f"This violates project requirements in strict mode."
             )
             return False
 

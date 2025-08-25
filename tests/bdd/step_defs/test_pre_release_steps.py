@@ -23,7 +23,7 @@ from pytest_bdd import then
 from pytest_bdd import when
 import pytest_check as check
 
-from git_ai_reporter.cli import main
+from git_ai_reporter.cli import analyze
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.services.gemini import GeminiClient
@@ -815,7 +815,7 @@ def when_run_pre_release(
         ):
 
             try:
-                main(
+                analyze(
                     repo_path=temp_dir,
                     weeks=1,
                     start_date_str=None,
@@ -884,7 +884,7 @@ def when_run_pre_release_with_dates(
         ):
 
             try:
-                main(
+                analyze(
                     repo_path=temp_dir,
                     weeks=1,
                     start_date_str=start_date,

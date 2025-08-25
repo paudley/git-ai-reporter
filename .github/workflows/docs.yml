@@ -1,0 +1,320 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'src/**/*.md'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'README.md'
+      - 'CHANGELOG.txt'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'src/**/*.md'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git revision plugin
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-docs-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-docs-
+            ${{ runner.os }}-pip-
+
+      - name: Install MkDocs and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[docs]"
+
+      - name: Build documentation
+        env:
+          ENABLE_PDF_EXPORT: ${{ github.event_name == 'release' }}
+        run: |
+          cd docs
+          mkdocs build --strict --verbose
+          
+      - name: Generate PDF (on release)
+        if: github.event_name == 'release'
+        run: |
+          cd docs
+          mkdocs build --strict
+          # PDF will be in site/pdf/document.pdf
+          
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'site'
+          
+      - name: Upload PDF artifact (on release)
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-pdf
+          path: site/pdf/document.pdf
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Combine with existing Allure reports
+  integrate-allure:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          
+      - name: Create integrated index
+        run: |
+          cat > gh-pages/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Git AI Reporter - Documentation & Reports</title>
+              <style>
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      padding: 20px;
+                  }
+                  
+                  .container {
+                      background: white;
+                      border-radius: 20px;
+                      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                      max-width: 800px;
+                      width: 100%;
+                      padding: 60px;
+                  }
+                  
+                  h1 {
+                      color: #333;
+                      font-size: 2.5rem;
+                      margin-bottom: 20px;
+                      text-align: center;
+                  }
+                  
+                  .subtitle {
+                      color: #666;
+                      text-align: center;
+                      margin-bottom: 50px;
+                      font-size: 1.1rem;
+                  }
+                  
+                  .cards {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                      gap: 30px;
+                      margin-bottom: 40px;
+                  }
+                  
+                  .card {
+                      background: #f8f9fa;
+                      border-radius: 12px;
+                      padding: 30px;
+                      text-align: center;
+                      transition: transform 0.3s, box-shadow 0.3s;
+                      cursor: pointer;
+                      text-decoration: none;
+                      color: inherit;
+                  }
+                  
+                  .card:hover {
+                      transform: translateY(-5px);
+                      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                  }
+                  
+                  .card-icon {
+                      font-size: 3rem;
+                      margin-bottom: 15px;
+                  }
+                  
+                  .card-title {
+                      font-size: 1.3rem;
+                      color: #333;
+                      margin-bottom: 10px;
+                      font-weight: 600;
+                  }
+                  
+                  .card-description {
+                      color: #666;
+                      font-size: 0.95rem;
+                      line-height: 1.5;
+                  }
+                  
+                  .footer {
+                      text-align: center;
+                      color: #999;
+                      font-size: 0.9rem;
+                      margin-top: 40px;
+                      padding-top: 30px;
+                      border-top: 1px solid #e0e0e0;
+                  }
+                  
+                  .footer a {
+                      color: #667eea;
+                      text-decoration: none;
+                  }
+                  
+                  .footer a:hover {
+                      text-decoration: underline;
+                  }
+                  
+                  .badge {
+                      display: inline-block;
+                      background: #667eea;
+                      color: white;
+                      padding: 4px 12px;
+                      border-radius: 20px;
+                      font-size: 0.85rem;
+                      margin: 5px;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🚀 Git AI Reporter</h1>
+                  <p class="subtitle">Transform your Git history into intelligent documentation</p>
+                  
+                  <div class="cards">
+                      <a href="/git-ai-reporter/" class="card">
+                          <div class="card-icon">📚</div>
+                          <div class="card-title">Documentation</div>
+                          <div class="card-description">
+                              Comprehensive project documentation, guides, and API reference
+                          </div>
+                      </a>
+                      
+                      <a href="/git-ai-reporter/allure/" class="card">
+                          <div class="card-icon">🧪</div>
+                          <div class="card-title">Test Reports</div>
+                          <div class="card-description">
+                              Allure test reports with detailed test execution results
+                          </div>
+                      </a>
+                  </div>
+                  
+                  <div class="cards">
+                      <a href="https://github.com/paudley/git-ai-reporter" class="card">
+                          <div class="card-icon">💻</div>
+                          <div class="card-title">GitHub Repository</div>
+                          <div class="card-description">
+                              Source code, issues, and contributions
+                          </div>
+                      </a>
+                      
+                      <a href="https://pypi.org/project/git-ai-reporter/" class="card">
+                          <div class="card-icon">📦</div>
+                          <div class="card-title">PyPI Package</div>
+                          <div class="card-description">
+                              Install via pip with supply chain attestations
+                          </div>
+                      </a>
+                  </div>
+                  
+                  <div class="footer">
+                      <div style="margin-bottom: 15px;">
+                          <span class="badge">v0.1.0</span>
+                          <span class="badge">Python 3.12+</span>
+                          <span class="badge">MIT License</span>
+                      </div>
+                      <p>
+                          Made with ❤️ by <a href="https://github.com/paudley">Patrick Audley</a>
+                          <br>
+                          © 2025 Blackcat Informatics Inc.
+                      </p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+      - name: Commit integrated index
+        run: |
+          cd gh-pages
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Update integrated documentation index"
+          
+      - name: Push to gh-pages
+        run: |
+          cd gh-pages
+          git push
+
+  # Validate documentation on PRs
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Documentation build successful! The changes will be deployed when merged to main.'
+            })

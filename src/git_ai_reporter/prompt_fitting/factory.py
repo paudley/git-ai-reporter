@@ -5,7 +5,7 @@
 
 This module provides sophisticated factory patterns for creating and selecting
 optimal prompt fitting strategies based on content analysis, performance
-requirements, and data integrity constraints from CLAUDE.md.
+requirements, and data integrity constraints.
 """
 
 from dataclasses import dataclass
@@ -97,7 +97,7 @@ class SelectionCriteria(Enum):
     PERFORMANCE = "performance"  # Optimize for speed
     QUALITY = "quality"  # Optimize for best results
     BALANCED = "balanced"  # Balance performance and quality
-    DATA_INTEGRITY = "data_integrity"  # Maximum data preservation (CLAUDE.md)
+    DATA_INTEGRITY = "data_integrity"  # Maximum data preservation
     EXPERIMENTAL = "experimental"  # Use cutting-edge strategies
     RELIABILITY = "reliability"  # Most stable strategies
 
@@ -146,7 +146,7 @@ class StrategyRequirements:
     """Requirements and constraints for strategy selection."""
 
     # Core requirements
-    min_data_preservation: float = REQUIRED_DATA_PRESERVATION_RATE  # CLAUDE.md requires 100%
+    min_data_preservation: float = REQUIRED_DATA_PRESERVATION_RATE  # Project requires 100%
     performance_priority: SelectionCriteria = SelectionCriteria.BALANCED
     optimization_target: OptimizationTarget = OptimizationTarget.ACCURACY
 

@@ -66,7 +66,7 @@ class PromptFittingError(Exception):
 class DataIntegrityViolationError(PromptFittingError):
     """Raised when data integrity cannot be preserved.
 
-    This is a critical error that indicates a violation of CLAUDE.md
+    This is a critical error that indicates a violation of project
     requirements for 100% data preservation. It should trigger immediate
     system failure and investigation.
     """

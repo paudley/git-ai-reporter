@@ -2,23 +2,11 @@
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
 """Step definitions for error handling BDD scenarios."""
+# pylint: disable=redefined-outer-name  # BDD step functions need to match fixture names
 
-import asyncio
-from datetime import datetime
-from datetime import timedelta
 import gc
-import json
-import os
 from pathlib import Path
-import shutil
-import sys
-import tempfile
-import time
 from typing import Any
-from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
-from unittest.mock import Mock
-from unittest.mock import patch
 
 import git
 import pytest
@@ -28,10 +16,58 @@ from pytest_bdd import scenarios
 from pytest_bdd import then
 from pytest_bdd import when
 
-from git_ai_reporter.config import Settings
-from git_ai_reporter.models import AnalysisResult
-from git_ai_reporter.models import Change
-from git_ai_reporter.models import CommitAnalysis
+# Test constants for magic values
+GEMINI_API_KEY_NAME = "GEMINI_API_KEY"
+MAKERSUITE_KEYWORD = "makersuite"
+
+# Error message constants
+APIKEY_TEXT = "apikey"
+INVALID_TEXT = "Invalid"
+GIT_TEXT = "git"
+GIT_INIT_TEXT = "git init"
+NO_COMMITS_TEXT = "No commits"
+NETWORK_ERROR_TEXT = "network error"
+TIMEOUT_TEXT = "timeout"
+RATE_LIMIT_TEXT = "rate limit"
+QUOTA_EXCEEDED_TEXT = "quota exceeded"
+DISK_SPACE_TEXT = "disk space"
+MEMORY_ERROR_TEXT = "memory error"
+LOW_MEMORY_TEXT = "low memory"
+MISSING_DEPS_TEXT = "missing_deps"
+MISSING_TEXT = "Missing"
+ERROR_MESSAGE_TEXT = "error_message"
+DEGRADED_MODE_TEXT = "degraded"
+
+# Error type constants
+ACCESSIBLE_ANALYZED_COUNT = 2
+SUCCESSFUL_PRESERVED_COUNT = 7
+
+# Additional error handling constants
+CORRUPTED_TEXT = "corrupted"
+GIT_CAPITAL_TEXT = "Git"
+GIT_FSCK_TEXT = "git fsck"
+OFFLINE_TEXT = "offline"
+NEWS_FILE_TEXT = "NEWS.md"
+CHMOD_TEXT = "chmod"
+DISK_SPACE_LIMIT = 1000000
+CLEAR_TEXT = "clear"
+PIPE_SEPARATOR_TEXT = "|"
+START_DATE_TEXT = "start_date"
+DATE_PARTS_COUNT = 3
+INVALID_MONTH_TEXT = "Invalid month"
+INVALID_DAY_TEXT = "Invalid day"
+END_BEFORE_START_TEXT = "End before start"
+FUTURE_DATES_TEXT = "Future dates"
+BEFORE_TEXT = "before"
+FUTURE_TEXT = "future"
+DATE_FORMAT_TEXT = "YYYY-MM-DD"
+PIP_TEXT = "pip"
+UV_TEXT = "uv"
+VENV_TEXT = "venv"
+
+# Additional constants for remaining magic values
+PIPE_CHAR = "|"
+START_DATE_KEY = "start_date"
 
 # Link all scenarios from the feature file
 scenarios("../features/error_handling.feature")
@@ -106,13 +142,13 @@ def run_reporter(error_context: dict[str, Any]) -> None:
 @then("an error message should explain the missing key")
 def error_explains_missing_key(error_context: dict[str, Any]) -> None:
     """Verify error message explains missing key."""
-    assert "GEMINI_API_KEY" in error_context["error_message"]
+    assert GEMINI_API_KEY_NAME in error_context["error_message"]
 
 
 @then("instructions for obtaining a key should be shown")
 def instructions_shown(error_context: dict[str, Any]) -> None:
     """Verify instructions are shown."""
-    assert any("makersuite" in s or "apikey" in s for s in error_context["suggestions"])
+    assert any(MAKERSUITE_KEYWORD in s or APIKEY_TEXT in s for s in error_context["suggestions"])
 
 
 @then("the tool should exit gracefully")
@@ -148,7 +184,7 @@ def api_error_caught(error_context: dict[str, Any]) -> None:
 def user_friendly_message(error_context: dict[str, Any]) -> None:
     """Verify user-friendly message is shown."""
     assert error_context["error_message"] is not None
-    assert "Invalid" in error_context["error_message"] or error_context["exit_code"] == 1
+    assert INVALID_TEXT in error_context["error_message"] or error_context["exit_code"] == 1
 
 
 @then("suggestions for fixing the key should be provided")
@@ -195,21 +231,23 @@ def error_no_git_repo(error_context: dict[str, Any]) -> None:
     """Verify error indicates no git repository."""
     if not error_context["repo"]:
         error_context["error_message"] = "Not a git repository"
-    assert "git" in error_context["error_message"].lower()
+    assert GIT_TEXT in error_context["error_message"].lower()
 
 
 @then("suggestions to run 'git init' should be shown")
 def git_init_suggestion(error_context: dict[str, Any]) -> None:
     """Verify git init suggestion is shown."""
     error_context["suggestions"].append("Run 'git init' to initialize a repository")
-    assert any("git init" in s for s in error_context["suggestions"])
+    assert any(GIT_INIT_TEXT in s for s in error_context["suggestions"])
 
 
 @then("no crash should occur")
 def no_crash(error_context: dict[str, Any]) -> None:
     """Verify no crash occurs."""
     # Tool handled error gracefully
-    assert error_context.get("error_message") is not None or error_context.get("exit_code") is not None
+    assert (
+        error_context.get("error_message") is not None or error_context.get("exit_code") is not None
+    )
 
 
 # Scenario: Handle empty git repository
@@ -218,7 +256,7 @@ def empty_git_repo(error_context: dict[str, Any], temp_dir: Path) -> None:
     """Create empty git repository."""
     error_context["repo_path"] = temp_dir
     error_context["repo"] = git.Repo.init(temp_dir)
-    
+
     # Configure git but don't add commits
     config_writer = error_context["repo"].config_writer()
     try:
@@ -245,7 +283,7 @@ def generate_minimal_files(error_context: dict[str, Any]) -> None:
 @then("indicate no commits were found")
 def indicate_no_commits(error_context: dict[str, Any]) -> None:
     """Verify indication of no commits."""
-    assert "No commits" in error_context.get("summary_content", "No commits")
+    assert NO_COMMITS_TEXT in error_context.get("summary_content", NO_COMMITS_TEXT)
 
 
 @then("exit successfully")
@@ -274,14 +312,17 @@ def git_errors_caught(error_context: dict[str, Any]) -> None:
 @then("repository issues should be reported")
 def repo_issues_reported(error_context: dict[str, Any]) -> None:
     """Verify repository issues are reported."""
-    assert "corrupted" in error_context["error_message"].lower() or "Git" in error_context["error_message"]
+    assert (
+        CORRUPTED_TEXT in error_context["error_message"].lower()
+        or GIT_CAPITAL_TEXT in error_context["error_message"]
+    )
 
 
 @then("suggestions for git fsck should be provided")
 def git_fsck_suggestion(error_context: dict[str, Any]) -> None:
     """Verify git fsck suggestion is provided."""
     error_context["suggestions"].append("Run 'git fsck' to check repository integrity")
-    assert any("git fsck" in s for s in error_context["suggestions"])
+    assert any(GIT_FSCK_TEXT in s for s in error_context["suggestions"])
 
 
 @then("the tool should exit cleanly")
@@ -310,7 +351,7 @@ def connection_errors_caught(error_context: dict[str, Any]) -> None:
 def offline_mode_suggested(error_context: dict[str, Any]) -> None:
     """Verify offline mode is suggested."""
     error_context["suggestions"].append("Use --offline mode with cached results")
-    assert any("offline" in s.lower() for s in error_context["suggestions"])
+    assert any(OFFLINE_TEXT in s.lower() for s in error_context["suggestions"])
 
 
 @then("cached results should be used if available")
@@ -417,14 +458,14 @@ def permission_errors_caught(error_context: dict[str, Any]) -> None:
 @then("specific files should be identified")
 def specific_files_identified(error_context: dict[str, Any]) -> None:
     """Verify specific files are identified."""
-    assert "NEWS.md" in str(error_context["permission_errors"])
+    assert NEWS_FILE_TEXT in str(error_context["permission_errors"])
 
 
 @then("permission fix suggestions should be shown")
 def permission_fix_suggestions(error_context: dict[str, Any]) -> None:
     """Verify permission fix suggestions are shown."""
     error_context["suggestions"].append("Run 'chmod +w NEWS.md' to make file writable")
-    assert any("chmod" in s for s in error_context["suggestions"])
+    assert any(CHMOD_TEXT in s for s in error_context["suggestions"])
 
 
 @then("no data loss should occur")
@@ -444,9 +485,9 @@ def insufficient_disk_space(error_context: dict[str, Any]) -> None:
 @then("disk space errors should be detected")
 def disk_space_errors_detected(error_context: dict[str, Any]) -> None:
     """Verify disk space errors are detected."""
-    if error_context["disk_space"] < 1000000:  # Less than 1MB
+    if error_context["disk_space"] < DISK_SPACE_LIMIT:  # Less than 1MB
         error_context["error_message"] = "Insufficient disk space"
-    assert "disk space" in error_context["error_message"].lower()
+    assert DISK_SPACE_TEXT in error_context["error_message"].lower()
 
 
 @then("space requirements should be shown")
@@ -461,7 +502,7 @@ def cleanup_suggestions(error_context: dict[str, Any]) -> None:
     """Verify cleanup suggestions are provided."""
     error_context["suggestions"].append("Clear cache with --clear-cache")
     error_context["suggestions"].append("Remove old log files")
-    assert any("clear" in s.lower() for s in error_context["suggestions"])
+    assert any(CLEAR_TEXT in s.lower() for s in error_context["suggestions"])
 
 
 @then("graceful degradation should occur")
@@ -641,16 +682,18 @@ def final_state_consistent(error_context: dict[str, Any]) -> None:
 def invalid_date_params(error_context: dict[str, Any], table: str) -> None:
     """Set up invalid date parameters."""
     error_context["date_tests"] = []
-    
+
     for line in table.strip().split("\n"):
-        if "|" in line and "start_date" not in line:
-            parts = [p.strip() for p in line.split("|")[1:-1]]
-            if len(parts) == 3:
-                error_context["date_tests"].append({
-                    "start": parts[0],
-                    "end": parts[1],
-                    "issue": parts[2],
-                })
+        if PIPE_CHAR in line and START_DATE_KEY not in line:
+            parts = [p.strip() for p in line.split(PIPE_CHAR)[1:-1]]
+            if len(parts) == DATE_PARTS_COUNT:
+                error_context["date_tests"].append(
+                    {
+                        "start": parts[0],
+                        "end": parts[1],
+                        "issue": parts[2],
+                    }
+                )
 
 
 @when("I run git-ai-reporter with these dates")
@@ -659,13 +702,13 @@ def run_with_dates(error_context: dict[str, Any]) -> None:
     for test in error_context["date_tests"]:
         try:
             # Validate dates
-            if test["issue"] == "Invalid month":
+            if test["issue"] == INVALID_MONTH_TEXT:
                 raise ValueError("Invalid month: 13")
-            elif test["issue"] == "Invalid day":
+            if test["issue"] == INVALID_DAY_TEXT:
                 raise ValueError("Invalid day: 32")
-            elif test["issue"] == "End before start":
+            if test["issue"] == END_BEFORE_START_TEXT:
                 raise ValueError("End date is before start date")
-            elif test["issue"] == "Future dates":
+            if test["issue"] == FUTURE_DATES_TEXT:
                 raise ValueError("Cannot analyze future dates")
         except ValueError as e:
             error_context["date_errors"].append(str(e))
@@ -681,14 +724,14 @@ def date_validation_catches(error_context: dict[str, Any]) -> None:
 def clear_error_messages(error_context: dict[str, Any]) -> None:
     """Verify clear error messages are shown."""
     for error in error_context["date_errors"]:
-        assert "Invalid" in error or "before" in error or "future" in error
+        assert INVALID_TEXT in error or BEFORE_TEXT in error or FUTURE_TEXT in error
 
 
 @then("valid date format should be explained")
 def date_format_explained(error_context: dict[str, Any]) -> None:
     """Verify valid date format is explained."""
     error_context["date_format"] = "YYYY-MM-DD (e.g., 2025-01-15)"
-    assert "YYYY-MM-DD" in error_context["date_format"]
+    assert DATE_FORMAT_TEXT in error_context["date_format"]
 
 
 @then("examples should be provided")
@@ -763,25 +806,27 @@ def install_commands_suggested(error_context: dict[str, Any]) -> None:
         "Run: uv pip sync pyproject.toml",
         "Or: pip install -r requirements.txt",
     ]
-    assert any("pip" in s or "uv" in s for s in error_context["suggestions"])
+    assert any(PIP_TEXT in s or UV_TEXT in s for s in error_context["suggestions"])
 
 
 @then("virtual environment should be recommended")
 def venv_recommended(error_context: dict[str, Any]) -> None:
     """Verify virtual environment is recommended."""
     error_context["suggestions"].append("Create venv: python -m venv .venv")
-    assert any("venv" in s for s in error_context["suggestions"])
+    assert any(VENV_TEXT in s for s in error_context["suggestions"])
 
 
 @then("clear error messages should be shown")
 def clear_messages_shown(error_context: dict[str, Any]) -> None:
     """Verify clear error messages are shown."""
-    if "missing_deps" in error_context:
-        error_context["error_message"] = f"Missing dependencies: {', '.join(error_context['missing_deps'])}"
-        assert "Missing" in error_context["error_message"]
+    if MISSING_DEPS_TEXT in error_context:
+        error_context["error_message"] = (
+            f"Missing dependencies: {', '.join(error_context['missing_deps'])}"
+        )
+        assert MISSING_TEXT in error_context["error_message"]
     else:
         # This is used by other scenarios, just ensure some error message exists
-        if "error_message" not in error_context or not error_context["error_message"]:
+        if ERROR_MESSAGE_TEXT not in error_context or not error_context[ERROR_MESSAGE_TEXT]:
             error_context["error_message"] = "Error detected"
         assert error_context["error_message"] is not None
 
@@ -855,7 +900,7 @@ def permission_errors_handled(error_context: dict[str, Any]) -> None:
 def accessible_analyzed(error_context: dict[str, Any]) -> None:
     """Verify accessible content is analyzed."""
     error_context["analyzed_branches"] = ["main", "develop"]
-    assert len(error_context["analyzed_branches"]) == 2
+    assert len(error_context["analyzed_branches"]) == ACCESSIBLE_ANALYZED_COUNT
 
 
 @then("skipped content should be logged")
@@ -890,7 +935,7 @@ def some_requests_fail(error_context: dict[str, Any]) -> None:
 @then("successful requests should be preserved")
 def successful_preserved(error_context: dict[str, Any]) -> None:
     """Verify successful requests are preserved."""
-    assert error_context["successful_requests"] == 7
+    assert error_context["successful_requests"] == SUCCESSFUL_PRESERVED_COUNT
 
 
 @then("failed requests should be retried")
@@ -904,7 +949,7 @@ def failed_retried(error_context: dict[str, Any]) -> None:
 def degraded_mode_indicated(error_context: dict[str, Any]) -> None:
     """Verify degraded mode is indicated."""
     error_context["degraded_mode_message"] = "Operating in degraded mode (70% success rate)"
-    assert "degraded" in error_context["degraded_mode_message"].lower()
+    assert DEGRADED_MODE_TEXT in error_context["degraded_mode_message"].lower()
 
 
 @then("best-effort results should be generated")

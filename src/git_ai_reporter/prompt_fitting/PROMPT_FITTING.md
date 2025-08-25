@@ -1,9 +1,9 @@
 # Prompt Fitting Module
 
-## 🚨 CRITICAL: CLAUDE.md Data Integrity Compliance 🚨
+## CRITICAL: Data Integrity Compliance
 
 **MANDATORY READING BEFORE ANY CHANGES:**
-- This module enforces **complete data integrity** as required by CLAUDE.md
+- This module enforces **complete data integrity** as required by project specifications
 - **NO truncation, sampling, or data loss is permitted under any circumstances**
 - **All commits must be analyzed** - mandatory complete commit coverage
 - **System fails fast if any data would be lost**
@@ -15,7 +15,7 @@ The `prompt_fitting.py` module provides advanced, **data-preserving** strategies
 
 ## Core Principles
 
-### 1. **🚨 CLAUDE.md COMPLIANCE: ZERO Data Loss 🚨**
+### 1. **PROJECT COMPLIANCE: ZERO Data Loss**
 - **MANDATORY complete data integrity** - NO truncation, sampling, or data loss permitted
 - **Complete commit coverage** - Every commit must be analyzed (no sampling allowed)
 - **All fitting strategies MUST preserve all of the original information**
@@ -60,7 +60,7 @@ result = await fitter.fit_content(content, ContentType.DAILY_SUMMARY)
 **⚠️ NOTE:** Despite the legacy class name `DiffTruncationFitter`, this strategy NEVER truncates data.
 
 ```python
-# CLAUDE.md COMPLIANT: Preserves 100% of diff content through overlapping chunks
+# PROJECT COMPLIANT: Preserves 100% of diff content through overlapping chunks
 # NO truncation or data loss - uses hierarchical processing instead
 # Maintains complete file-level context for analysis
 
@@ -76,10 +76,10 @@ result = await fit_git_diff(diff_content, token_counter, max_tokens=100000)
 
 ### Log Compression Strategy (100% Data Preserving)
 **Best for:** Commit logs, temporal data
-**🚨 CRITICAL:** NO sampling allowed - preserves ALL commit information
+**CRITICAL:** NO sampling allowed - preserves ALL commit information
 
 ```python
-# CLAUDE.md COMPLIANT: Preserves 100% of commit log through overlapping chunks
+# PROJECT COMPLIANT: Preserves 100% of commit log through overlapping chunks
 # NO sampling or data loss - uses chunk processing for ALL commits
 # Maintains complete temporal coverage and commit diversity
 
@@ -167,7 +167,7 @@ fitted_content = await fit_git_diff(diff, token_counter, 100000)
 The module includes built-in validation to ensure data preservation:
 
 ```python
-# CLAUDE.md COMPLIANT: 100% data integrity validation
+# PROJECT COMPLIANT: 100% data integrity validation
 def validate_preservation(self, original: str, fitted: str) -> bool:
     # For chunked content, verify complete preservation
     if "--- Content Segment" in fitted or "--- Diff Segment" in fitted:
@@ -208,7 +208,7 @@ This implementation is based on current research in:
 - **Semantic Preservation**: Maintaining meaning across transformations
 - **Chunking Strategies**: Overlap optimization for continuity
 
-## 🚨 CRITICAL BUG: OverlappingChunksFitter Data Loss Issue 🚨
+## CRITICAL BUG: OverlappingChunksFitter Data Loss Issue
 
 **DISCOVERED:** A critical data integrity violation has been identified in `OverlappingChunksFitter._create_overlapping_chunks()` at lines 166-167:
 
@@ -221,7 +221,7 @@ overlap_size = int(chunk_size * self.config.overlap_ratio)  # ❌ TRUNCATES TO Z
 - For small content with small chunks, `int()` truncation causes `overlap_size = 0`
 - Example: 10 lines, 3 chunks → `chunk_size = 3`, `overlap_ratio = 0.2` → `overlap_size = int(3 * 0.2) = 0`
 - Result: Chunks `[0-2]`, `[3-5]`, `[6-9]` with **ZERO overlap** and only 90% coverage (missing line 9)
-- **VIOLATES CLAUDE.md:** This creates data loss, breaking the mandatory 100% data integrity requirement
+- **VIOLATES PROJECT SPEC:** This creates data loss, breaking the mandatory 100% data integrity requirement
 
 **WHY LogCompressionFitter WORKS:**
 - Uses step-based approach: `chunk_step = max(1, lines_per_chunk // 2)`

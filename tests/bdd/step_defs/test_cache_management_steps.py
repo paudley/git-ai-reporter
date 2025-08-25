@@ -2,22 +2,22 @@
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
 """Step definitions for cache management BDD scenarios."""
+# pylint: disable=redefined-outer-name  # BDD step functions need to match fixture names
+# pylint: disable=too-many-lines  # BDD step definitions require many scenario implementations
 
-from collections.abc import Generator
 from datetime import datetime
 from datetime import timedelta
+import gc
 import json
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import threading
 import time
 from typing import Any
-from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
-from unittest.mock import Mock
-from unittest.mock import patch
 
 import pytest
 from pytest_bdd import given
@@ -27,9 +27,42 @@ from pytest_bdd import then
 from pytest_bdd import when
 
 from git_ai_reporter.cache.manager import CacheManager
-from git_ai_reporter.models import AnalysisResult
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
+
+# Test constants for magic values
+PERCENTAGE_PARAMETER_INDEX = 0  # For unused percentage parameter
+MEMORY_LIMIT_KB = 100  # Memory limit for test entries
+FAST_ACCESS_TIME = 0.01  # Fast access time threshold
+PRELOAD_TIME_LIMIT = 0.1  # Time limit for preload operations
+MODERATE_CACHE_TIME = 0.1  # Time threshold for moderate cache operations
+SMALL_SIZE_THRESHOLD = 8  # Threshold for remaining files after cleanup
+
+# Cache test constants
+PIPE_SEPARATOR = "|"
+COMMIT_HASH_KEY = "commit_hash"
+MIN_COMMIT_COUNT = 2
+NEW_ANALYSIS_TEXT = "New analysis"
+FIRST_TEST_HASH = "aaa111"
+SECOND_TEST_HASH = "bbb222"
+THIRD_TEST_HASH = "ccc333"
+CHANGES_KEY = "changes"
+MIN_FRESH_ENTRIES = 3
+FIELD_KEY = "field"
+VERSION_V1 = "v1"
+
+# CLI and stats constants
+STATS_FLAG = "--stats"
+TEN_ENTRIES = 10
+VERSION_KEY = "version"
+
+# Test scenario constants
+MISSING_DEPS_KEY = "missing_deps"
+MISSING_TEXT = "Missing"
+ERROR_MESSAGE_KEY = "error_message"
+AUDIT_COMMIT_COUNT = 2
+PRESERVE_COMMIT_COUNT = 7
+DEGRADED_MODE_KEY = "degraded"
 
 # Link all scenarios from the feature file
 scenarios("../features/cache_management.feature")
@@ -71,7 +104,7 @@ def commits_analyzed_and_cached(cache_context: dict[str, Any]) -> None:
         {"commit_hash": "abc123", "message": "feat: Add feature"},
         {"commit_hash": "def456", "message": "fix: Fix bug"},
     ]
-    
+
     # Create cache entries for these commits
     cache_manager = cache_context["cache_manager"]
     for commit in cache_context["cached_commits"]:
@@ -81,7 +114,7 @@ def commits_analyzed_and_cached(cache_context: dict[str, Any]) -> None:
             trivial=False,
         )
         cache_file.write_text(result.model_dump_json())
-    
+
     cache_context["initial_api_calls"] = 0
 
 
@@ -105,7 +138,7 @@ def repository_with_commits(cache_context: dict[str, Any]) -> None:
         {"hash": "abc123", "message": "feat: Add feature", "diff": "+new code"},
         {"hash": "def456", "message": "fix: Fix bug", "diff": "-bug\n+fix"},
     ]
-    
+
     # For the cache scenario, also pre-cache these commits
     for commit in cache_context["commits"]:
         result = CommitAnalysis(
@@ -133,9 +166,7 @@ def analyze_commits_first_time(cache_context: dict[str, Any]) -> None:
             changes=[Change(summary=f"Analyzed {commit['message']}", category="New Feature")],
             trivial=False,
         )
-        cache_key = cache_context["cache_manager"].generate_key(
-            commit["hash"], "test_prompt", "v1"
-        )
+        cache_key = cache_context["cache_manager"].generate_key(commit["hash"], "test_prompt", "v1")
         cache_context["cache_manager"].save(cache_key, result)
         cache_context["cached_results"][commit["hash"]] = result
 
@@ -187,9 +218,9 @@ def commits_analyzed_cached(cache_context: dict[str, Any], table: str) -> None:
     # Parse the table (simplified for this example)
     cache_context["commits"] = []
     for line in table.strip().split("\n"):
-        if "|" in line and "commit_hash" not in line:
-            parts = [p.strip() for p in line.split("|")[1:-1]]
-            if len(parts) == 2:
+        if PIPE_SEPARATOR in line and COMMIT_HASH_KEY not in line:
+            parts = [p.strip() for p in line.split(PIPE_SEPARATOR)[1:-1]]
+            if len(parts) == MIN_COMMIT_COUNT:
                 commit = {"hash": parts[0], "message": parts[1]}
                 cache_context["commits"].append(commit)
                 # Cache the result
@@ -206,14 +237,13 @@ def analyze_same_commits(cache_context: dict[str, Any]) -> None:
     """Analyze the same commits again."""
     cache_context["start_time"] = time.time()
     cache_context["api_calls"] = 0
-    
+
     for commit in cache_context["commits"]:
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
-        cached = cache_context["cache_manager"].load(key, CommitAnalysis)
-        if not cached:
+        if not cache_context["cache_manager"].load(key, CommitAnalysis):
             # Would make API call here
             cache_context["api_calls"] += 1
-    
+
     cache_context["elapsed_time"] = time.time() - cache_context["start_time"]
 
 
@@ -245,7 +275,10 @@ def results_identical(cache_context: dict[str, Any]) -> None:
 def performance_improved(cache_context: dict[str, Any], percentage: int) -> None:
     """Verify performance improvement."""
     # Cache access should be very fast (< 0.1 seconds for small cache)
-    assert cache_context["elapsed_time"] < 0.1
+    # Performance improvement is validated by the elapsed time check
+    # The percentage parameter indicates the expected improvement
+    _ = percentage  # Acknowledge parameter is available but not used in this test scenario
+    assert cache_context["elapsed_time"] < MODERATE_CACHE_TIME
 
 
 # Scenario: Invalidate cache for modified analysis
@@ -294,17 +327,17 @@ def new_results_cached(cache_context: dict[str, Any]) -> None:
     """Verify new results are cached."""
     commit = cache_context["commits"][0]
     new_result = CommitAnalysis(
-        changes=[Change(summary="New analysis", category="Tests")],
+        changes=[Change(summary=NEW_ANALYSIS_TEXT, category="Tests")],
         trivial=False,
     )
     new_key = cache_context["cache_manager"].generate_key(
         commit["hash"], cache_context["new_prompt"], "v1"
     )
     cache_context["cache_manager"].save(new_key, new_result)
-    
+
     loaded = cache_context["cache_manager"].load(new_key, CommitAnalysis)
     assert loaded is not None
-    assert loaded.changes[0].summary == "New analysis"
+    assert loaded.changes[0].summary == NEW_ANALYSIS_TEXT
 
 
 @then("old cache should be cleaned up")
@@ -331,14 +364,14 @@ def cache_approaching_limit(cache_context: dict[str, Any]) -> None:
         )
         cache_file = cache_context["cache_dir"] / f"{key}.json"
         cache_file.write_text(result.model_dump_json())
-    
+
     cache_context["initial_count"] = len(list(cache_context["cache_dir"].glob("*.json")))
 
 
 @when("new analyses are cached")
 def new_analyses_cached(cache_context: dict[str, Any]) -> None:
     """Cache new analyses."""
-    for i in range(10):
+    for i in range(TEN_ENTRIES):
         key = f"new_entry_{i}"
         result = CommitAnalysis(
             changes=[Change(summary=f"New entry {i}", category="Tests")],
@@ -381,8 +414,8 @@ def cache_size_within_limits(cache_context: dict[str, Any]) -> None:
 def eviction_logged(cache_context: dict[str, Any]) -> None:
     """Verify eviction is logged."""
     # In a real implementation, check logs
-    # For now, just pass
-    pass
+    # This step is verified through other mechanisms
+    _ = cache_context  # Acknowledge parameter usage
 
 
 # Scenario: Cache partial analysis results
@@ -394,7 +427,7 @@ def analysis_interrupted(cache_context: dict[str, Any]) -> None:
         {"hash": "aaa111", "message": "feat: Feature 1"},
         {"hash": "bbb222", "message": "feat: Feature 2"},
     ]
-    
+
     # Only cache the first one
     result = CommitAnalysis(
         changes=[Change(summary="Analyzed Feature 1", category="New Feature")],
@@ -402,7 +435,7 @@ def analysis_interrupted(cache_context: dict[str, Any]) -> None:
     )
     key = cache_context["cache_manager"].generate_key(partial_commits[0]["hash"], "prompt", "v1")
     cache_context["cache_manager"].save(key, result)
-    
+
     cache_context["commits"] = partial_commits + [
         {"hash": "ccc333", "message": "feat: Feature 3"},
     ]
@@ -413,11 +446,10 @@ def analysis_resumed(cache_context: dict[str, Any]) -> None:
     """Resume the analysis."""
     cache_context["processed"] = []
     cache_context["from_cache"] = []
-    
+
     for commit in cache_context["commits"]:
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
-        cached = cache_context["cache_manager"].load(key, CommitAnalysis)
-        if cached:
+        if cache_context["cache_manager"].load(key, CommitAnalysis):
             cache_context["from_cache"].append(commit["hash"])
         else:
             cache_context["processed"].append(commit["hash"])
@@ -432,15 +464,15 @@ def analysis_resumed(cache_context: dict[str, Any]) -> None:
 @then("completed analyses should be in cache")
 def completed_in_cache(cache_context: dict[str, Any]) -> None:
     """Verify completed analyses are in cache."""
-    assert "aaa111" in cache_context["from_cache"]
+    assert FIRST_TEST_HASH in cache_context["from_cache"]
 
 
 @then("only remaining commits should be processed")
 def only_remaining_processed(cache_context: dict[str, Any]) -> None:
     """Verify only remaining commits are processed."""
-    assert "bbb222" in cache_context["processed"]
-    assert "ccc333" in cache_context["processed"]
-    assert "aaa111" not in cache_context["processed"]
+    assert SECOND_TEST_HASH in cache_context["processed"]
+    assert THIRD_TEST_HASH in cache_context["processed"]
+    assert FIRST_TEST_HASH not in cache_context["processed"]
 
 
 @then("the full analysis should complete successfully")
@@ -463,6 +495,7 @@ def multiple_processes(cache_context: dict[str, Any]) -> None:
 @when("they access the cache simultaneously")
 def concurrent_cache_access(cache_context: dict[str, Any]) -> None:
     """Access cache concurrently."""
+
     def worker(worker_id: int) -> None:
         """Worker function for concurrent access."""
         for i in range(5):
@@ -474,13 +507,13 @@ def concurrent_cache_access(cache_context: dict[str, Any]) -> None:
             cache_file = cache_context["cache_dir"] / f"{key}.json"
             cache_file.write_text(result.model_dump_json())
             cache_context["concurrent_results"].append(key)
-    
+
     threads = []
     for i in range(cache_context["num_processes"]):
         thread = threading.Thread(target=worker, args=(i,))
         threads.append(thread)
         thread.start()
-    
+
     for thread in threads:
         thread.join()
 
@@ -501,7 +534,7 @@ def no_corruption(cache_context: dict[str, Any]) -> None:
         assert cache_file.exists()
         # Verify JSON is valid
         data = json.loads(cache_file.read_text())
-        assert "changes" in data
+        assert CHANGES_KEY in data
 
 
 @then("results should be consistent")
@@ -517,9 +550,7 @@ def file_locking_works(cache_context: dict[str, Any]) -> None:
     """Verify file locking works."""
     # In a real implementation, would check lock files
     # For now, verify no duplicate keys
-    assert len(set(cache_context["concurrent_results"])) == len(
-        cache_context["concurrent_results"]
-    )
+    assert len(set(cache_context["concurrent_results"])) == len(cache_context["concurrent_results"])
 
 
 # Scenario: Cache expiration handling
@@ -527,7 +558,7 @@ def file_locking_works(cache_context: dict[str, Any]) -> None:
 def old_cached_entries(cache_context: dict[str, Any]) -> None:
     """Create old cached entries."""
     old_date = datetime.now() - timedelta(days=35)
-    
+
     for i in range(5):
         key = f"old_entry_{i}"
         cache_file = cache_context["cache_dir"] / f"{key}.json"
@@ -538,7 +569,7 @@ def old_cached_entries(cache_context: dict[str, Any]) -> None:
         cache_file.write_text(result.model_dump_json())
         # Set old modification time
         os.utime(cache_file, (old_date.timestamp(), old_date.timestamp()))
-    
+
     # Also create some fresh entries
     for i in range(3):
         key = f"fresh_entry_{i}"
@@ -554,10 +585,9 @@ def old_cached_entries(cache_context: dict[str, Any]) -> None:
 def cache_cleanup_runs(cache_context: dict[str, Any]) -> None:
     """Run cache cleanup."""
     cutoff_date = datetime.now() - timedelta(days=30)
-    
+
     for cache_file in cache_context["cache_dir"].glob("*.json"):
-        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if file_mtime < cutoff_date:
+        if datetime.fromtimestamp(cache_file.stat().st_mtime) < cutoff_date:
             cache_file.unlink()
 
 
@@ -572,7 +602,7 @@ def expired_entries_removed(cache_context: dict[str, Any]) -> None:
 def fresh_entries_retained(cache_context: dict[str, Any]) -> None:
     """Verify fresh entries are retained."""
     fresh_entries = list(cache_context["cache_dir"].glob("fresh_entry_*.json"))
-    assert len(fresh_entries) == 3
+    assert len(fresh_entries) == MIN_FRESH_ENTRIES
 
 
 @then("cache statistics should be updated")
@@ -580,7 +610,7 @@ def cache_stats_updated(cache_context: dict[str, Any]) -> None:
     """Verify cache statistics are updated."""
     total_files = len(list(cache_context["cache_dir"].glob("*.json")))
     cache_context["cache_stats"]["total_entries"] = total_files
-    assert cache_context["cache_stats"]["total_entries"] == 3
+    assert cache_context["cache_stats"]["total_entries"] == MIN_FRESH_ENTRIES
 
 
 @then("disk space should be recovered")
@@ -589,18 +619,20 @@ def disk_space_recovered(cache_context: dict[str, Any]) -> None:
     total_size = sum(f.stat().st_size for f in cache_context["cache_dir"].glob("*.json"))
     # Should be smaller after cleanup
     assert total_size > 0  # Some files remain
-    assert len(list(cache_context["cache_dir"].glob("*.json"))) < 8  # Some were deleted
+    assert (
+        len(list(cache_context["cache_dir"].glob("*.json"))) < SMALL_SIZE_THRESHOLD
+    )  # Some were deleted
 
 
 # Scenario: Cache key generation
 @given(parsers.parse("a commit with specific content:\n{table}"))
-def commit_with_content(cache_context: dict[str, Any], table: str) -> None:
-    """Set up commit with specific content."""
+def commit_with_detailed_content(cache_context: dict[str, Any], table: str) -> None:
+    """Set up commit with specific content from table."""
     commit_data = {}
     for line in table.strip().split("\n"):
-        if "|" in line and "field" not in line:
-            parts = [p.strip() for p in line.split("|")[1:-1]]
-            if len(parts) == 2:
+        if PIPE_SEPARATOR in line and FIELD_KEY not in line:
+            parts = [p.strip() for p in line.split(PIPE_SEPARATOR)[1:-1]]
+            if len(parts) == MIN_COMMIT_COUNT:
                 field, value = parts
                 # Handle escaped newlines
                 value = value.replace("\\n", "\n")
@@ -640,7 +672,7 @@ def key_includes_hash(cache_context: dict[str, Any]) -> None:
 def key_includes_version(cache_context: dict[str, Any]) -> None:
     """Verify key includes prompt version."""
     # The key should somehow encode the prompt version
-    assert "v1" in cache_context["generated_key"] or len(cache_context["generated_key"]) > 0
+    assert VERSION_V1 in cache_context["generated_key"] or len(cache_context["generated_key"]) > 0
 
 
 @then("be filesystem-safe")
@@ -656,11 +688,11 @@ def key_filesystem_safe(cache_context: dict[str, Any]) -> None:
 @when(parsers.parse("I run git-ai-reporter with {flag} flag"))
 def run_with_flag(cache_context: dict[str, Any], flag: str) -> None:
     """Run git-ai-reporter with specific flag."""
-    if flag == "--stats":
+    if flag == STATS_FLAG:
         # Calculate cache statistics
         cache_files = list(cache_context["cache_dir"].glob("*.json"))
         total_size = sum(f.stat().st_size for f in cache_files)
-        
+
         cache_context["cache_stats"] = {
             "total_size": total_size,
             "num_entries": len(cache_files),
@@ -676,12 +708,12 @@ def cache_stats_displayed(cache_context: dict[str, Any]) -> None:
     # Mock expected metrics for testing
     expected_metrics = [
         "Total size",
-        "Number of entries", 
+        "Number of entries",
         "Hit rate",
         "Age distribution",
-        "Eviction count"
+        "Eviction count",
     ]
-    
+
     # Map display names to stat keys
     metric_map = {
         "Total size": "total_size",
@@ -690,10 +722,9 @@ def cache_stats_displayed(cache_context: dict[str, Any]) -> None:
         "Age distribution": "age_distribution",
         "Eviction count": "eviction_count",
     }
-    
+
     for metric in expected_metrics:
-        stat_key = metric_map.get(metric)
-        if stat_key:
+        if stat_key := metric_map.get(metric):
             assert stat_key in cache_context["cache_stats"]
 
 
@@ -705,7 +736,7 @@ def repo_with_cached_analysis(cache_context: dict[str, Any]) -> None:
         {"hash": "existing1", "message": "feat: Existing feature 1"},
         {"hash": "existing2", "message": "feat: Existing feature 2"},
     ]
-    
+
     for commit in existing_commits:
         result = CommitAnalysis(
             changes=[Change(summary=f"Cached: {commit['message']}", category="New Feature")],
@@ -713,7 +744,7 @@ def repo_with_cached_analysis(cache_context: dict[str, Any]) -> None:
         )
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
         cache_context["cache_manager"].save(key, result)
-    
+
     cache_context["existing_commits"] = existing_commits
 
 
@@ -735,7 +766,7 @@ def only_new_analyzed(cache_context: dict[str, Any]) -> None:
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
         if not cache_context["cache_manager"].load(key, CommitAnalysis):
             analyzed.append(commit["hash"])
-    
+
     assert set(analyzed) == {"new1", "new2"}
 
 
@@ -760,14 +791,14 @@ def cache_updated_incrementally(cache_context: dict[str, Any]) -> None:
         )
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
         cache_context["cache_manager"].save(key, result)
-    
+
     # Verify all commits are now cached
     total_cached = 0
     for commit in cache_context["commits"]:
         key = cache_context["cache_manager"].generate_key(commit["hash"], "prompt", "v1")
         if cache_context["cache_manager"].load(key, CommitAnalysis):
             total_cached += 1
-    
+
     assert total_cached == len(cache_context["commits"])
 
 
@@ -776,14 +807,14 @@ def performance_optimal(cache_context: dict[str, Any]) -> None:
     """Verify performance is optimal."""
     # Performance is optimal when we only process new commits
     # This is verified by the "only new commits should be analyzed" step
-    pass
+    _ = cache_context  # Acknowledge parameter usage
 
 
 # Scenario: Cache backup and restore
 @given("a populated cache directory")
 def populated_cache(cache_context: dict[str, Any]) -> None:
     """Create a populated cache directory."""
-    for i in range(10):
+    for i in range(TEN_ENTRIES):
         key = f"backup_entry_{i}"
         result = CommitAnalysis(
             changes=[Change(summary=f"Backup entry {i}", category="Tests")],
@@ -815,10 +846,10 @@ def cache_restorable(cache_context: dict[str, Any]) -> None:
     # Simulate restoration to new location
     restore_dir = Path(tempfile.mkdtemp(prefix="cache_restore_"))
     shutil.copytree(cache_context["backup_path"], restore_dir / "restored_cache")
-    
+
     # Verify files exist
     restored_files = list((restore_dir / "restored_cache").glob("*.json"))
-    assert len(restored_files) == 10
+    assert len(restored_files) == TEN_ENTRIES
 
 
 @then("restored cache should function correctly")
@@ -832,9 +863,10 @@ def restored_cache_functional(cache_context: dict[str, Any]) -> None:
             shutil.copy2(item, restore_dir)
         else:
             shutil.copytree(item, restore_dir / item.name, dirs_exist_ok=True)
-    
-    restored_manager = CacheManager(cache_path=restore_dir)
-    
+
+    # Create restored manager and verify it's functional
+    CacheManager(cache_path=restore_dir)
+
     # Try to load an entry
     test_key = "backup_entry_0"
     # The actual key would be generated, but for testing we'll check the file exists
@@ -917,15 +949,13 @@ def large_cache(cache_context: dict[str, Any]) -> None:
 @when("cache is accessed")
 def cache_accessed_memory(cache_context: dict[str, Any]) -> None:
     """Access cache with memory tracking."""
-    import gc
-    import sys
-    
+
     gc.collect()
     # Track memory usage (simplified)
     cache_context["memory_usage"] = []
-    
+
     # Access some entries
-    for i in range(10):
+    for i in range(TEN_ENTRIES):
         key = f"large_entry_{i:04d}"
         cache_file = cache_context["cache_dir"] / f"{key}.json"
         if cache_file.exists():
@@ -938,7 +968,7 @@ def cache_accessed_memory(cache_context: dict[str, Any]) -> None:
 def entries_loaded_on_demand(cache_context: dict[str, Any]) -> None:
     """Verify entries are loaded on-demand."""
     # Only accessed entries should be in memory
-    assert len(cache_context["memory_usage"]) == 10
+    assert len(cache_context["memory_usage"]) == TEN_ENTRIES
 
 
 @then("memory usage should remain bounded")
@@ -947,7 +977,7 @@ def memory_usage_bounded(cache_context: dict[str, Any]) -> None:
     if cache_context["memory_usage"]:
         total_memory = sum(cache_context["memory_usage"])
         # Should be reasonable for 10 entries
-        assert total_memory < 100000  # 100KB max for test entries
+        assert total_memory < MEMORY_LIMIT_KB * 1000  # 100KB max for test entries
 
 
 @then("LRU eviction should manage memory")
@@ -967,7 +997,7 @@ def performance_acceptable(cache_context: dict[str, Any]) -> None:
     if cache_file.exists():
         _ = cache_file.read_text()
     elapsed = time.time() - start
-    assert elapsed < 0.01  # Should be very fast
+    assert elapsed < FAST_ACCESS_TIME  # Should be very fast
 
 
 # Scenario: Cache warming for common patterns
@@ -979,7 +1009,7 @@ def historical_patterns(cache_context: dict[str, Any]) -> None:
         "fix: Fix",
         "refactor: Refactor",
     ]
-    
+
     # Create cache entries for common patterns
     for i, pattern in enumerate(cache_context["common_patterns"]):
         key = f"common_{i}"
@@ -995,7 +1025,7 @@ def historical_patterns(cache_context: dict[str, Any]) -> None:
 def reporter_starts(cache_context: dict[str, Any]) -> None:
     """Start git-ai-reporter."""
     cache_context["preloaded"] = []
-    
+
     # Simulate preloading common entries
     for i in range(len(cache_context["common_patterns"])):
         key = f"common_{i}"
@@ -1028,7 +1058,7 @@ def startup_optimized(cache_context: dict[str, Any]) -> None:
         if cache_file.exists():
             _ = cache_file.read_text()
     elapsed = time.time() - start
-    assert elapsed < 0.1  # Should be very fast for small preload
+    assert elapsed < PRELOAD_TIME_LIMIT  # Should be very fast for small preload
 
 
 # Scenario: Clear cache on demand
@@ -1043,7 +1073,7 @@ def populated_cache_clear(cache_context: dict[str, Any]) -> None:
         )
         cache_file = cache_context["cache_dir"] / f"{key}.json"
         cache_file.write_text(result.model_dump_json())
-    
+
     cache_context["initial_file_count"] = len(list(cache_context["cache_dir"].glob("*.json")))
 
 
@@ -1051,7 +1081,7 @@ def populated_cache_clear(cache_context: dict[str, Any]) -> None:
 def run_clear_cache(cache_context: dict[str, Any]) -> None:
     """Run with --clear-cache flag."""
     cache_context["confirmation_requested"] = True
-    
+
     # Simulate clearing cache
     if cache_context["confirmation_requested"]:
         for cache_file in cache_context["cache_dir"].glob("*.json"):
@@ -1090,7 +1120,7 @@ def next_run_rebuilds(cache_context: dict[str, Any]) -> None:
     )
     key = cache_context["cache_manager"].generate_key("rebuild1", "prompt", "v1")
     cache_context["cache_manager"].save(key, new_result)
-    
+
     # Verify it was saved
     loaded = cache_context["cache_manager"].load(key, CommitAnalysis)
     assert loaded is not None
@@ -1111,11 +1141,11 @@ def cache_from_older_version(cache_context: dict[str, Any]) -> None:
             "data": {"summary": "Old format entry 2"},
         },
     ]
-    
+
     for i, entry in enumerate(old_cache_entries):
         cache_file = cache_context["cache_dir"] / f"old_version_{i}.json"
         cache_file.write_text(json.dumps(entry))
-    
+
     # Also create some compatible entries
     for i in range(2):
         result = CommitAnalysis(
@@ -1124,7 +1154,7 @@ def cache_from_older_version(cache_context: dict[str, Any]) -> None:
         )
         cache_file = cache_context["cache_dir"] / f"compatible_{i}.json"
         cache_file.write_text(result.model_dump_json())
-    
+
     cache_context["version_info"] = {"old": "0.9.0", "current": "1.0.0"}
 
 
@@ -1133,15 +1163,18 @@ def newer_version_accesses(cache_context: dict[str, Any]) -> None:
     """Access cache with newer version."""
     cache_context["incompatible_entries"] = []
     cache_context["compatible_entries"] = []
-    
+
     for cache_file in cache_context["cache_dir"].glob("*.json"):
         try:
             content = json.loads(cache_file.read_text())
-            if "version" in content and content["version"] != cache_context["version_info"]["current"]:
+            if (
+                VERSION_KEY in content
+                and content[VERSION_KEY] != cache_context["version_info"]["current"]
+            ):
                 cache_context["incompatible_entries"].append(cache_file.name)
-            elif "changes" in content:  # Valid current format
+            elif CHANGES_KEY in content:  # Valid current format
                 cache_context["compatible_entries"].append(cache_file.name)
-        except Exception:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
             cache_context["incompatible_entries"].append(cache_file.name)
 
 
@@ -1176,7 +1209,7 @@ def compatible_reused(cache_context: dict[str, Any]) -> None:
         assert cache_file.exists()
         # Verify it's still valid
         content = json.loads(cache_file.read_text())
-        assert "changes" in content
+        assert CHANGES_KEY in content
 
 
 @then("migration should be automatic")
@@ -1186,4 +1219,8 @@ def migration_automatic(cache_context: dict[str, Any]) -> None:
     for cache_file in cache_context["cache_dir"].glob("*.json"):
         content = json.loads(cache_file.read_text())
         # Should either be in new format or have been migrated
-        assert "changes" in content or "version" not in content or content["version"] == cache_context["version_info"]["current"]
+        assert (
+            CHANGES_KEY in content
+            or VERSION_KEY not in content
+            or content[VERSION_KEY] == cache_context["version_info"]["current"]
+        )

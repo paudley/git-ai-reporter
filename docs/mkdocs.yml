@@ -1,0 +1,502 @@
+# SPDX-License-Identifier: MIT
+# Git AI Reporter Documentation Configuration
+# Copyright (c) 2025 Blackcat Informatics® Inc.
+
+# Site Information
+site_name: Git AI Reporter (DevSummary AI)
+site_description: AI-Driven Git Repository Analysis and Narrative Generation - Transform your Git history into intelligent, audience-aware documentation using AI
+site_author: Blackcat Informatics® Inc.
+site_url: https://paudley.github.io/git-ai-reporter/
+repo_url: https://github.com/paudley/git-ai-reporter
+repo_name: paudley/git-ai-reporter
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 Blackcat Informatics® Inc. | MIT License
+
+# Configuration for mkdocs-same-dir plugin - allows mkdocs.yml in docs directory
+docs_dir: .
+site_dir: ../site
+
+# Theme Configuration
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  
+  # Logo and Icons
+  logo: assets/images/logo.svg
+  favicon: assets/images/logo.svg
+  
+  # Color Palette Configuration
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  
+  # Font Configuration
+  font:
+    text: Roboto
+    code: Roboto Mono
+  
+  # Features (2025 Best Practices)
+  features:
+    # Navigation Features
+    - navigation.instant          # Instant loading (SPA-like behavior)
+    - navigation.instant.progress # Progress indicator for page loading
+    - navigation.instant.prefetch # Prefetch pages on hover
+    - navigation.tracking         # URL tracking
+    - navigation.tabs             # Top-level navigation tabs
+    - navigation.tabs.sticky      # Keep tabs visible when scrolling
+    - navigation.sections         # Collapsible navigation sections
+    - navigation.expand           # Auto-expand sections
+    - navigation.path             # Show breadcrumbs
+    - navigation.indexes          # Section index pages
+    - navigation.top              # Back-to-top button
+    - navigation.footer           # Previous/next page navigation
+    
+    # Table of Contents
+    - toc.follow                  # Auto-scroll TOC with reading position
+    - toc.integrate               # Integrate TOC into navigation sidebar
+    
+    # Search Features
+    - search.suggest              # Search suggestions as you type
+    - search.highlight            # Highlight search results
+    - search.share                # Share search results via URL
+    
+    # Content Features
+    - content.code.copy           # Copy button for code blocks
+    - content.code.select         # Select specific lines in code blocks
+    - content.code.annotate       # Add annotations to code blocks
+    - content.tabs.link           # Link content tabs across the page
+    - content.tooltips            # Enable tooltips
+    - content.action.edit         # Edit page button
+    - content.action.view         # View source button
+    
+    # Other Features
+    - announce.dismiss            # Dismissible announcements
+    - header.autohide             # Auto-hide header on scroll
+
+  # Icon Configuration
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+    admonition:
+      note: material/note-text
+      abstract: material/text
+      info: material/information-outline
+      tip: material/lightbulb-outline
+      success: material/check-decagram
+      question: material/help-circle
+      warning: material/alert
+      failure: material/close-octagon
+      danger: material/alert-octagon
+      bug: material/bug
+      example: material/test-tube
+      quote: material/format-quote-close
+
+# Plugins Configuration
+plugins:
+  # Core Functionality
+  - same-dir                      # Allow mkdocs.yml in docs directory
+  
+  # Search Configuration
+  - search:
+      separator: '[\s\-\.]'
+      lang:
+        - en
+      pipeline:
+        - stemmer
+        - stopWordFilter
+        - trimmer
+  
+  # Git Integration Plugins
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: iso_datetime
+      timezone: UTC
+      fallback_to_build_date: false
+      exclude:
+        - index.md
+  
+  - git-committers:
+      repository: paudley/git-ai-reporter
+      branch: main
+      enabled: !ENV [CI, false]
+  
+  - git-authors:
+      enabled: !ENV [CI, false]
+  
+  # Content Inclusion - Removed (conflicts with Jinja2 examples)
+  # Source documentation from src/ is included via symlinks
+  
+  # API Documentation Generation
+  - mkdocstrings:
+      enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+      default_handler: python
+      handlers:
+        python:
+          paths: [../src]
+          options:
+            # Headings
+            show_category_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            # Members
+            members_order: source
+            group_by_category: true
+            show_submodules: true
+            # Docstrings
+            docstring_style: google
+            docstring_section_style: table
+            line_length: 88
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            # Signatures
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            # Other
+            show_source: true
+            show_bases: true
+            filters:
+              - "!^_"  # Exclude private members
+              - "!^test"  # Exclude test functions
+  
+  # Typer CLI Documentation (mkdocs-typer is a markdown extension, not a plugin)
+  #     module: git_ai_reporter.cli
+  #     name: git-ai-reporter
+  #     pretty: true
+  
+  # Badge Support
+  # TODO: Fix badges plugin
+  # - badges
+  
+  # Social Cards Generation
+  - social:
+      enabled: !ENV [CI, false]
+      cards: true
+  
+  # Privacy Plugin - Download external assets for offline use (Insiders only)
+  # - privacy:
+  #     enabled: !ENV [CI, false]
+  #     external_assets: true
+  #     external_assets_dir: assets/external
+  #     external_links: true
+  #     external_links_attr_map:
+  #       target: _blank
+  #       rel: noopener
+  
+  # Tags Plugin - Organize content with tags
+  - tags:
+      enabled: true
+  
+  # Info Plugin - Show build information (Insiders only)
+  # - info:
+  #     enabled: !ENV [CI, false]
+  
+  # Meta Plugin - Manage metadata (Insiders only)  
+  # - meta:
+  #     enabled: true
+  
+  # Offline Plugin - Make docs work offline (Insiders only)
+  # - offline:
+  #     enabled: !ENV [OFFLINE, false]
+  
+  # Optimize Plugin - Optimize site assets (Insiders only)
+  # - optimize:
+  #     enabled: !ENV [CI, false]
+  #     cache: true
+  #     cache_dir: .cache/optimize
+  #     optimize_png: true
+  #     optimize_jpg: true
+  #     optimize_svg: true
+  #     print_info: true
+  
+  # Navigation Management
+  - awesome-pages:
+      collapse_single_pages: false
+      strict: false
+  
+  # Optimization Plugins
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+        remove_empty_space: true
+        reduce_boolean_attributes: true
+  
+  # Image Zoom
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      slide_effect: slide
+      width: 100%
+      height: auto
+      zoomable: true
+      draggable: true
+      auto_caption: true
+      caption_position: bottom
+  
+  # RSS Feed Generation
+  - rss:
+      enabled: !ENV [CI, false]
+      match_path: "blog/.*"
+      date_from_meta:
+        as_creation: date.created
+        as_update: date.updated
+      categories:
+        - categories
+        - tags
+      comments_path: "#__comments"
+
+# Markdown Extensions
+markdown_extensions:
+  # Python Markdown Standard Extensions
+  - abbr                          # Abbreviations with hover text
+  - admonition                    # Callout boxes
+  - attr_list                     # Add HTML attributes to elements
+  - def_list                      # Definition lists
+  - footnotes                     # Footnote references
+  - md_in_html                    # Allow Markdown inside HTML
+  - meta                          # Metadata support
+  - tables                        # Table support
+  - toc:                          # Table of contents
+      permalink: true
+      permalink_title: Anchor link to this section for reference
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+      toc_depth: 3
+  
+  # PyMdown Extensions (Advanced Features)
+  - pymdownx.arithmatex:          # Math notation support
+      generic: true
+  - pymdownx.betterem:            # Better emphasis handling
+      smart_enable: all
+  - pymdownx.caret                # Superscript with ^^
+  - pymdownx.critic                # Track changes syntax
+  - pymdownx.details               # Collapsible details blocks
+  - pymdownx.emoji:                # Emoji support
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:            # Code syntax highlighting
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: true
+      auto_title: true
+      linenums: true
+  - pymdownx.inlinehilite          # Inline code highlighting
+  - pymdownx.keys                  # Keyboard key styling
+  - pymdownx.magiclink:            # Auto-link URLs
+      repo_url_shorthand: true
+      user: paudley
+      repo: git-ai-reporter
+  - pymdownx.mark                  # Mark text with ==
+  - pymdownx.smartsymbols         # Smart quotes and dashes
+  - pymdownx.snippets:            # Include external files
+      base_path:
+        - docs
+        - .
+      check_paths: true
+  - pymdownx.superfences:          # Nested code blocks
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:               # Content tabs
+      alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:             # Task lists with checkboxes
+      custom_checkbox: true
+      clickable_checkbox: true
+  - pymdownx.tilde                 # Strikethrough with ~~
+  
+  # CLI Documentation Extension
+  - mkdocs-typer                   # Auto-generate CLI docs from Typer apps
+
+# Extra Configuration
+extra:
+  # Social Links
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/paudley/git-ai-reporter
+      name: GitHub Repository
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/git-ai-reporter/
+      name: PyPI Package
+    - icon: fontawesome/solid/envelope
+      link: mailto:paudley@blackcat.ca
+      name: Contact Maintainer
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/blackcat-informatics
+      name: LinkedIn
+  
+  # Version Configuration
+  version:
+    provider: mike
+    default: stable
+    alias: latest
+  
+  # Analytics (will be configured via environment variable)
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_ID
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: Thanks for your feedback! Help us improve by opening an issue.
+  
+  # Status Indicators for Pages
+  status:
+    new: Recently added (< 30 days)
+    deprecated: Deprecated - will be removed
+    beta: Beta feature - may change
+    stable: Stable API
+  
+  # Consent for Cookies/Analytics
+  consent:
+    title: Cookie consent
+    description: >- 
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+    actions:
+      - accept
+      - reject
+      - manage
+  
+  # Generator Notice
+  generator: true
+
+# Extra CSS and JavaScript
+extra_css:
+  - assets/stylesheets/custom.css
+  - assets/stylesheets/termage.css
+  - assets/stylesheets/badges.css
+
+extra_javascript:
+  - assets/javascripts/custom.js
+  - https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js
+  - assets/javascripts/tablesort.js
+  - assets/javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+# Page Tree (Navigation Structure)
+nav:
+  - Home:
+    - Welcome: index.md
+    - Getting Started: getting-started.md
+    - Features: features.md
+    - Roadmap: roadmap.md
+  
+  - Installation:
+    - installation/index.md
+    - From PyPI: installation/from-pypi.md
+    - From Source: installation/from-source.md
+    - Using Docker: installation/docker.md
+    - Configuration: installation/configuration.md
+  
+  - User Guide:
+    - guide/index.md
+    - Quick Start: guide/quick-start.md
+    - Concepts: guide/concepts.md
+    - Configuration: guide/configuration.md
+    - Basic Usage: guide/basic-usage.md
+    - Advanced Usage: guide/advanced-usage.md
+    - AI Models: guide/ai-models.md
+    - Output Formats: guide/output-formats.md
+    - Caching Strategy: guide/caching.md
+    - Performance: guide/performance.md
+    - Templates: guide/templates.md
+    - Integration: guide/integration.md
+    - Troubleshooting: guide/troubleshooting.md
+    - FAQ: guide/faq.md
+  
+  - CLI Reference:
+    - cli/index.md
+    - Commands: cli/commands.md
+    - Options: cli/options.md
+    - Examples: cli/examples.md
+    - Environment Variables: cli/environment.md
+  
+  - API Reference:
+    - api/index.md
+    - Core Module: api/core.md
+    - Analysis: api/analysis.md
+    - Services: api/services.md
+    - Orchestration: api/orchestration.md
+    - Cache: api/cache.md
+    - Summaries: api/summaries.md
+    - Writing: api/writing.md
+    - Utilities: api/utils.md
+    - Plugins: api/plugins.md
+  
+  - Architecture:
+    - architecture/index.md
+    - System Overview: architecture/overview.md
+    - Three-Tier AI: architecture/three-tier-ai.md
+    - Multi-Lens Analysis: architecture/multi-lens.md
+    - Caching System: architecture/caching.md
+    - Plugin Architecture: architecture/plugins.md
+    - JSON Handling: architecture/json-handling.md
+  
+  - Development:
+    - development/index.md
+    - Contributing: development/contributing.md
+    - Development Setup: development/setup.md
+    - Coding Guidelines: development/coding-guidelines.md
+    - Testing Strategy: development/testing.md
+    - PyTest Guidelines: development/pytest-guidelines.md
+    - Allure Reporting: development/allure-guide.md
+    - Releasing: development/releasing.md
+  
+  - Internals:
+    - internals/index.md
+    - Prompt Fitting: internals/prompt-fitting.md
+    - Summaries: internals/summaries.md
+    - Utilities: internals/utils.md
+  
+  - About:
+    - about/index.md
+    - Changelog: about/changelog.md
+    - License: about/license.md
+    - Security: about/security.md
+    - Acknowledgments: about/acknowledgments.md
+    - FAQ: about/faq.md
+  
+  # External Links (will appear in navigation)
+  - Allure Reports ↗: https://paudley.github.io/git-ai-reporter/allure/
+  - PyPI Package ↗: https://pypi.org/project/git-ai-reporter/
+  - GitHub ↗: https://github.com/paudley/git-ai-reporter
+
+# Watch Additional Directories (for auto-reload during development)
+watch:
+  - ../src
+  - overrides

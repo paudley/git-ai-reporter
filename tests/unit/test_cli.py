@@ -27,8 +27,8 @@ from git_ai_reporter.cli import \
     _determine_date_range  # pylint: disable=protected-access,import-private-name
 from git_ai_reporter.cli import \
     _load_settings  # pylint: disable=protected-access,import-private-name
+from git_ai_reporter.cli import analyze
 from git_ai_reporter.cli import APP
-from git_ai_reporter.cli import main
 from git_ai_reporter.config import Settings
 from git_ai_reporter.services.gemini import GeminiClientError
 
@@ -354,7 +354,7 @@ class TestMainCommand:
 
         with allure.step("Execute main command and expect error handling"):
             with pytest.raises(typer.Exit) as exc_info:
-                main(
+                analyze(
                     repo_path=".",
                     weeks=1,  # Explicit integer to avoid mock contamination
                     start_date_str=None,
@@ -395,7 +395,7 @@ class TestMainCommand:
 
         with allure.step("Execute main command with invalid repository path"):
             with pytest.raises(typer.Exit) as exc_info:
-                main(
+                analyze(
                     repo_path="/invalid/path",
                     weeks=1,
                     start_date_str=None,
@@ -484,7 +484,7 @@ class TestMainCommand:
         mock_orchestrator_class.return_value = MagicMock()
 
         # Run main with explicit integer weeks parameter
-        main(
+        analyze(
             repo_path=".",
             weeks=1,  # Explicit integer to avoid mock contamination
             start_date_str=None,
@@ -549,7 +549,7 @@ class TestMainCommand:
         mock_repo.close = MagicMock()
         mock_repo_class.return_value = mock_repo
 
-        main(
+        analyze(
             repo_path=".",
             weeks=1,  # Explicit integer to avoid mock contamination
             start_date_str=None,

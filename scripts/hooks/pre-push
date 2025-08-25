@@ -34,6 +34,61 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "📌 Checking branch: $BRANCH"
 echo ""
 
+# Check all commit messages that will be pushed for banned words
+echo "🚫 Checking commit messages for banned words..."
+REMOTE=$1
+URL=$2
+
+# Get the range of commits that will be pushed
+if [ -z "$REMOTE" ]; then
+    # If no remote specified, assume origin
+    REMOTE="origin"
+fi
+
+# Create temp file for commit messages
+COMMIT_MSGS_FILE=$(mktemp)
+trap "rm -f $COMMIT_MSGS_FILE" EXIT
+
+# Get all commit messages that will be pushed
+# This reads from stdin provided by git
+while read local_ref local_sha remote_ref remote_sha
+do
+    # Check if we're deleting a branch (local_sha is all zeros)
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+    
+    # Get the range of new commits
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch, check all commits not in any remote branch
+        git log --format="%B" --no-merges "$local_sha" --not --remotes="$REMOTE/*" >> "$COMMIT_MSGS_FILE"
+    else
+        # Existing branch, check new commits only
+        git log --format="%B" --no-merges "$remote_sha..$local_sha" >> "$COMMIT_MSGS_FILE"
+    fi
+done
+
+# If we have commit messages, check them for banned words
+if [ -s "$COMMIT_MSGS_FILE" ]; then
+    if [ -f "$PROJECT_ROOT/scripts/check-banned-words.sh" ]; then
+        if ! "$PROJECT_ROOT/scripts/check-banned-words.sh" "$COMMIT_MSGS_FILE"; then
+            echo ""
+            echo "❌ Push aborted due to banned words in commit messages!"
+            echo "Please amend your commit messages before pushing."
+            echo ""
+            echo "To amend the last commit message:"
+            echo "  git commit --amend"
+            echo ""
+            echo "To amend older commits, use interactive rebase:"
+            echo "  git rebase -i HEAD~N  (where N is the number of commits back)"
+            exit 1
+        fi
+    fi
+else
+    echo "ℹ️  No new commits to check"
+fi
+echo ""
+
 # Run comprehensive security scan on all Python files
 echo "🔒 Running comprehensive security scan..."
 ALL_PY_FILES=$(find "$PROJECT_ROOT/src" "$PROJECT_ROOT/tests" -name "*.py" -type f 2>/dev/null | head -100)

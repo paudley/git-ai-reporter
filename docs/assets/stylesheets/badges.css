@@ -1,0 +1,313 @@
+/* SPDX-License-Identifier: MIT */
+/* Badge Styling for Git AI Reporter Documentation */
+
+/* Badge Container */
+.badges,
+.md-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  align-items: center;
+}
+
+/* Base Badge Style */
+.badge,
+.md-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Interactive Badge Hover Effects */
+.badge:hover,
+.md-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Badge with Icon */
+.badge-icon {
+  margin-right: 0.25rem;
+  font-size: 1em;
+}
+
+/* Status Badges */
+.badge--success,
+.md-badge--success {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+}
+
+.badge--warning,
+.md-badge--warning {
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  color: white;
+}
+
+.badge--error,
+.md-badge--error,
+.badge--danger {
+  background: linear-gradient(135deg, #f44336, #ef5350);
+  color: white;
+}
+
+.badge--info,
+.md-badge--info {
+  background: linear-gradient(135deg, #2196f3, #42a5f5);
+  color: white;
+}
+
+/* Version Badges */
+.badge--version {
+  background: linear-gradient(135deg, #9c27b0, #ba68c8);
+  color: white;
+}
+
+.badge--alpha {
+  background: linear-gradient(135deg, #ff5722, #ff7043);
+  color: white;
+}
+
+.badge--beta {
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  color: white;
+}
+
+.badge--stable {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+}
+
+.badge--deprecated {
+  background: linear-gradient(135deg, #9e9e9e, #bdbdbd);
+  color: white;
+  text-decoration: line-through;
+}
+
+/* Technology Badges */
+.badge--python {
+  background: linear-gradient(135deg, #3776ab, #4b8bbe);
+  color: white;
+}
+
+.badge--git {
+  background: linear-gradient(135deg, #f05032, #f66d52);
+  color: white;
+}
+
+.badge--ai {
+  background: linear-gradient(135deg, #673ab7, #7e57c2);
+  color: white;
+}
+
+.badge--gemini {
+  background: linear-gradient(135deg, #4285f4, #669df6);
+  color: white;
+}
+
+/* License Badges */
+.badge--license {
+  background: linear-gradient(135deg, #795548, #8d6e63);
+  color: white;
+}
+
+.badge--mit {
+  background: linear-gradient(135deg, #a31f34, #c23848);
+  color: white;
+}
+
+/* Coverage Badges */
+.badge--coverage {
+  position: relative;
+  background: #e0e0e0;
+  color: #333;
+  padding-right: 3rem;
+}
+
+.badge--coverage::after {
+  content: attr(data-coverage);
+  position: absolute;
+  right: 0.5rem;
+  font-weight: bold;
+}
+
+.badge--coverage-high {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+}
+
+.badge--coverage-medium {
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  color: white;
+}
+
+.badge--coverage-low {
+  background: linear-gradient(135deg, #f44336, #ef5350);
+  color: white;
+}
+
+/* CI/CD Badges */
+.badge--passing {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+}
+
+.badge--failing {
+  background: linear-gradient(135deg, #f44336, #ef5350);
+  color: white;
+}
+
+.badge--pending {
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  color: white;
+}
+
+/* Social Badges */
+.badge--github {
+  background: #24292e;
+  color: white;
+}
+
+.badge--pypi {
+  background: linear-gradient(135deg, #0073b7, #0088cc);
+  color: white;
+}
+
+.badge--discord {
+  background: #5865f2;
+  color: white;
+}
+
+.badge--twitter {
+  background: #1da1f2;
+  color: white;
+}
+
+/* Animated Badges */
+.badge--animated {
+  background: linear-gradient(270deg, #667eea, #764ba2, #f093fb, #f5576c);
+  background-size: 600% 600%;
+  animation: gradient-shift 3s ease infinite;
+  color: white;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Badge with Progress */
+.badge--progress {
+  position: relative;
+  background: #e0e0e0;
+  color: #333;
+  overflow: hidden;
+}
+
+.badge--progress::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #4caf50, #66bb6a);
+  width: var(--progress, 0%);
+  transition: width 0.3s ease;
+}
+
+.badge--progress span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Clickable Badges */
+.badge--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.badge--clickable:active {
+  transform: scale(0.95);
+}
+
+/* Badge Groups */
+.badge-group {
+  display: inline-flex;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.badge-group .badge {
+  border-radius: 0;
+  margin: 0;
+}
+
+.badge-group .badge:first-child {
+  border-top-left-radius: 20px;
+  border-bottom-left-radius: 20px;
+}
+
+.badge-group .badge:last-child {
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+/* Dark Theme Adjustments */
+[data-md-color-scheme="slate"] .badge--coverage,
+[data-md-color-scheme="slate"] .badge--progress {
+  background: #2b2b3d;
+  color: #cdd6f4;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+  .badges,
+  .md-badges {
+    gap: 0.25rem;
+  }
+  
+  .badge,
+  .md-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
+/* Copy Badge (for code blocks) */
+.badge--copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--md-accent-fg-color);
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.badge--copy:hover {
+  background: var(--md-accent-fg-color--dark);
+}
+
+.badge--copy.copied {
+  background: #4caf50;
+}
+
+/* External Link Badge */
+.badge--external::after {
+  content: ' ↗';
+  margin-left: 0.25rem;
+  font-weight: bold;
+}

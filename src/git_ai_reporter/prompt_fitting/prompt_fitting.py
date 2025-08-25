@@ -7,7 +7,7 @@ This module provides sophisticated strategies for fitting large content into
 LLM token limits while preserving complete data integrity. It implements various
 research-backed approaches for content compression without information loss.
 
-🚨 CLAUDE.md COMPLIANCE 🚨
+PROJECT COMPLIANCE
 This module enforces the mandatory complete data integrity requirement:
 - NO sampling, truncation, or data loss is permitted
 - ALL commits must be analyzed (mandatory complete commit coverage)
@@ -226,7 +226,7 @@ class PromptFittingConfig(BaseModel):
         default=True, description="Enable comprehensive data preservation validation"
     )
     strict_mode: bool = Field(
-        default=True, description="Enforce 100% data integrity (CLAUDE.md compliance)"
+        default=True, description="Enforce 100% data integrity (project compliance)"
     )
     timeout_seconds: float = Field(
         default=300.0, gt=0.0, le=3600.0, description="Maximum processing timeout in seconds"
@@ -279,13 +279,13 @@ class ContentFitter(ABC):
 class OverlappingChunksFitter(ContentFitter):
     """Fits content using overlapping chunks with guaranteed 100% data preservation.
 
-    🚨 CRITICAL BUG FIXED: Previous version had integer truncation causing data loss.
+    CRITICAL BUG FIXED: Previous version had integer truncation causing data loss.
     This implementation uses step-based overlap calculation to ensure complete coverage.
 
     This strategy:
     1. Splits content using step-based chunking (similar to LogCompressionFitter)
     2. Guarantees minimum overlap to prevent data loss
-    3. Validates complete coverage as required by CLAUDE.md
+    3. Validates complete coverage as required by the project
     4. Provides detailed chunk boundary analysis
     """
 
@@ -331,7 +331,7 @@ class OverlappingChunksFitter(ContentFitter):
 
             # Validate complete coverage before proceeding
             validation_result = self.validator.validate_chunks_coverage(content, chunks)
-            validation_result.raise_if_invalid()  # Enforces CLAUDE.md compliance
+            validation_result.raise_if_invalid()  # Enforces project compliance
 
             fitted_content = self._prepare_chunked_content(chunks)
             fitted_tokens = await self.token_counter.count_tokens(fitted_content)
@@ -406,7 +406,7 @@ class OverlappingChunksFitter(ContentFitter):
     ) -> list[str]:
         """Create overlapping chunks using step-based approach for guaranteed coverage.
 
-        🚨 CRITICAL: This method uses the same proven algorithm as LogCompressionFitter
+        CRITICAL: This method uses the same proven algorithm as LogCompressionFitter
         to avoid the integer truncation bug in the original implementation.
         """
         lines = content.split("\n")
@@ -488,7 +488,7 @@ class DiffTruncationFitter(ContentFitter):
 
     CRITICAL: Despite the name, this fitter NEVER truncates data.
     It uses overlapping chunks to preserve 100% of diff content,
-    as required by CLAUDE.md data integrity mandates.
+    as required by project data integrity mandates.
     """
 
     async def fit_content(self, content: str, target_tokens: int) -> FittingResult[Any]:
@@ -496,7 +496,7 @@ class DiffTruncationFitter(ContentFitter):
 
         This method NEVER truncates or discards any diff content. Instead,
         it uses overlapping chunks that preserve 100% of the original data
-        through hierarchical processing, as required by CLAUDE.md.
+        through hierarchical processing, as required by the project.
         """
         if (original_tokens := await self.token_counter.count_tokens(content)) <= target_tokens:
             return FittingResult(
@@ -589,7 +589,7 @@ class DiffTruncationFitter(ContentFitter):
     def validate_preservation(self, original: str, fitted: str) -> bool:
         """Validate that ALL diff content is preserved with 100% integrity.
 
-        CRITICAL: This validation ensures NO data loss occurs, as required by CLAUDE.md.
+        CRITICAL: This validation ensures NO data loss occurs, as required by the project.
         """
         if not self.config.validation_enabled:
             return True
@@ -734,7 +734,7 @@ class PromptFitter:
     def _select_strategy(self, content_type: ContentType) -> FittingStrategy:
         """Select the optimal fitting strategy for the given content type.
 
-        CRITICAL: All strategies must preserve 100% data integrity per CLAUDE.md.
+        CRITICAL: All strategies must preserve 100% data integrity per project requirements.
         No truncation or data loss is permitted.
         """
         strategy_map = {

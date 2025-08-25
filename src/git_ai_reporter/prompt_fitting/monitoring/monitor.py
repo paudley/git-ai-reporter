@@ -75,7 +75,7 @@ class PromptFittingMonitor:
         Args:
             backend: Monitoring backend for metrics and alerts
             enable_performance_tracking: Enable performance metrics collection
-            enable_data_integrity_monitoring: Enable CLAUDE.md compliance tracking
+            enable_data_integrity_monitoring: Enable project compliance tracking
             metric_collection_interval: Interval for metric collection in seconds
         """
         # Configuration
@@ -164,7 +164,7 @@ class PromptFittingMonitor:
     def _setup_default_thresholds(self) -> None:
         """Setup default monitoring thresholds."""
         default_rules = [
-            # Data integrity compliance (CLAUDE.md requirement)
+            # Data integrity compliance (project requirement)
             ThresholdRule(
                 metrics=RuleMetrics(
                     metric_name="data_integrity_compliance",

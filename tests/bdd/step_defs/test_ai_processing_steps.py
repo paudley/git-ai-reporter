@@ -2,20 +2,46 @@
 # Copyright (c) 2025 Blackcat Informatics® Inc.
 
 """Step definitions for AI processing BDD scenarios."""
+# pylint: disable=redefined-outer-name  # BDD step functions need to match fixture names
 
-import json
 from typing import Any
-from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_bdd import given
-from pytest_bdd import parsers
 from pytest_bdd import scenarios
 from pytest_bdd import then
 from pytest_bdd import when
 
 from git_ai_reporter.utils.json_helpers import safe_json_decode
+
+# Test constants
+FEAT_PREFIX = "feat"
+AUTH_KEYWORD = "auth"
+MIN_AUTH_THRESHOLD = 3
+BROAD_EXCEPTION_TYPES = (Exception,)  # For catching general exceptions in test scenarios
+
+# AI processing constants
+SECURITY_KEYWORD = "security"
+AUTHENTICATION_KEYWORD = "authentication"
+OAUTH_KEYWORD = "oauth"
+SEARCH_KEYWORD = "search"
+MIN_RELATED_COUNT = 2
+THREE_ITEMS = 3
+CATEGORY_KEY = "category"
+PATTERN_KEY = "pattern"
+NARRATIVE_KEY = "narrative"
+SUMMARY_KEY = "summary"
+CRITICAL_PRIORITY = "critical"
+COHERENT_NARRATIVE = "Coherent daily narrative"
+
+# Additional AI analysis constants
+PROGRESSION_KEY = "progression"
+STORY_ARC_KEY = "story_arc"
+MIN_ACHIEVEMENTS_COUNT = 2
+STAKEHOLDER_FRIENDLY_LANGUAGE = "stakeholder-friendly"
+TECHNICAL_DESCRIPTION_KEY = "technical_description"
+SEARCH_FEATURE_THREAD = "search feature"
 
 # Link all scenarios from the feature file
 scenarios("../features/ai_processing.feature")
@@ -64,7 +90,7 @@ def test_data_with_patterns(ai_context: dict[str, Any]) -> None:
 
 
 @given("a set of commits to analyze:")
-def setup_commits_table(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_commits_table(ai_context: dict[str, Any]) -> None:
     """Set up commits from a data table."""
     # Mock data matching the feature file
     ai_context["commits"] = [
@@ -77,14 +103,16 @@ def setup_commits_table(ai_context: dict[str, Any], **kwargs: Any) -> None:
 @given("the AI returns imperfect JSON:")
 def setup_malformed_json(ai_context: dict[str, Any]) -> None:
     """Set up malformed JSON response."""
-    # Use sample malformed JSON for testing  
-    ai_context["ai_response"] = '''
+    # Use sample malformed JSON for testing
+    ai_context[
+        "ai_response"
+    ] = """
     {
         "summary": "Added new feature",
         "category": "New Feature",
         "impact": "high",  // trailing comma
     }
-    '''
+    """
 
 
 @given("a very large diff exceeding token limits")
@@ -95,19 +123,39 @@ def large_diff_exceeding_limits(ai_context: dict[str, Any]) -> None:
 
 
 @given("commits with different characteristics:")
-def setup_commits_with_categories(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_commits_with_categories(ai_context: dict[str, Any]) -> None:
     """Set up commits with different characteristics."""
     ai_context["categorized_commits"] = [
-        {"message": "feat: Add payment processing", "expected_category": "New Feature", "expected_impact": "high"},
-        {"message": "fix: Typo in comment", "expected_category": "Bug Fix", "expected_impact": "low"},
-        {"message": "refactor: Extract helper functions", "expected_category": "Refactoring", "expected_impact": "medium"},
-        {"message": "security: Fix SQL injection", "expected_category": "Security", "expected_impact": "critical"},
-        {"message": "perf: Optimize database queries", "expected_category": "Performance", "expected_impact": "high"},
+        {
+            "message": "feat: Add payment processing",
+            "expected_category": "New Feature",
+            "expected_impact": "high",
+        },
+        {
+            "message": "fix: Typo in comment",
+            "expected_category": "Bug Fix",
+            "expected_impact": "low",
+        },
+        {
+            "message": "refactor: Extract helper functions",
+            "expected_category": "Refactoring",
+            "expected_impact": "medium",
+        },
+        {
+            "message": "security: Fix SQL injection",
+            "expected_category": "Security",
+            "expected_impact": "critical",
+        },
+        {
+            "message": "perf: Optimize database queries",
+            "expected_category": "Performance",
+            "expected_impact": "high",
+        },
     ]
 
 
 @given("commits from a single day:")
-def setup_daily_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_daily_commits(ai_context: dict[str, Any]) -> None:
     """Set up commits from a single day."""
     ai_context["daily_commits"] = [
         {"time": "09:00", "message": "feat: Start authentication work"},
@@ -119,7 +167,7 @@ def setup_daily_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
 
 
 @given("daily summaries for a week:")
-def setup_weekly_summaries(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_weekly_summaries(ai_context: dict[str, Any]) -> None:
     """Set up daily summaries for a week."""
     ai_context["daily_summaries"] = [
         {"day": "Mon", "theme": "Authentication implementation"},
@@ -131,7 +179,7 @@ def setup_weekly_summaries(ai_context: dict[str, Any], **kwargs: Any) -> None:
 
 
 @given("commits with changes in different languages:")
-def setup_multilang_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_multilang_commits(ai_context: dict[str, Any]) -> None:
     """Set up commits with changes in different programming languages."""
     ai_context["multilang_commits"] = [
         {"file": "src/app.py", "language": "Python", "change": "Add REST endpoint"},
@@ -142,7 +190,7 @@ def setup_multilang_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
 
 
 @given("commits with breaking changes:")
-def setup_breaking_changes(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_breaking_changes(ai_context: dict[str, Any]) -> None:
     """Set up commits with breaking changes."""
     ai_context["breaking_commits"] = [
         {"message": "feat!: Change API response format", "breaking": True},
@@ -166,13 +214,12 @@ def identical_commits_cached(ai_context: dict[str, Any]) -> None:
 def hundred_small_commits(ai_context: dict[str, Any]) -> None:
     """Set up 100 small commits."""
     ai_context["commits"] = [
-        {"hash": f"commit{i:03d}", "message": f"feat: Feature {i}"}
-        for i in range(100)
+        {"hash": f"commit{i:03d}", "message": f"feat: Feature {i}"} for i in range(100)
     ]
 
 
 @given("categorized commits:")
-def setup_categorized_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_categorized_commits(ai_context: dict[str, Any]) -> None:
     """Set up categorized commits."""
     ai_context["emoji_commits"] = [
         {"category": "New Feature", "emoji": "✨", "commits": 5},
@@ -190,7 +237,7 @@ def api_rate_limit_reached(ai_context: dict[str, Any]) -> None:
 
 
 @given("related commits across multiple days:")
-def setup_related_commits(ai_context: dict[str, Any], **kwargs: Any) -> None:
+def setup_related_commits(ai_context: dict[str, Any]) -> None:
     """Set up related commits across multiple days."""
     ai_context["related_commits"] = [
         {"day": 1, "message": "feat: Start implementing search"},
@@ -207,14 +254,16 @@ def ai_analyzes_commits(ai_context: dict[str, Any]) -> None:
     # Simulate three-tier processing
     for commit in ai_context["commits"]:
         # Tier 1: Quick extraction
-        ai_context["tier1_results"].append({
-            "hash": commit["hash"],
-            "category": "New Feature" if "feat" in commit["message"] else "Bug Fix",
-        })
-    
+        ai_context["tier1_results"].append(
+            {
+                "hash": commit["hash"],
+                "category": "New Feature" if FEAT_PREFIX in commit["message"] else "Bug Fix",
+            }
+        )
+
     # Tier 2: Daily synthesis
     ai_context["tier2_results"] = ["Daily pattern identified"]
-    
+
     # Tier 3: Narrative generation
     ai_context["tier3_results"] = ["Weekly narrative generated"]
 
@@ -225,7 +274,7 @@ def parse_ai_response(ai_context: dict[str, Any]) -> None:
     try:
         ai_context["parsed_data"] = safe_json_decode(ai_context["ai_response"])
         ai_context["parse_success"] = True
-    except Exception as e:
+    except BROAD_EXCEPTION_TYPES as e:
         ai_context["parse_error"] = str(e)
         ai_context["parse_success"] = False
         # Still extract what we can
@@ -241,9 +290,7 @@ def ai_processes_content(ai_context: dict[str, Any]) -> None:
         # Simulate chunking
         chunk_size = 4000
         diff = ai_context["large_diff"]
-        ai_context["chunks"] = [
-            diff[i:i+chunk_size] for i in range(0, len(diff), chunk_size)
-        ]
+        ai_context["chunks"] = [diff[i : i + chunk_size] for i in range(0, len(diff), chunk_size)]
 
 
 @when("the AI categorizes these commits")
@@ -258,16 +305,15 @@ def ai_categorizes_commits(ai_context: dict[str, Any]) -> None:
 @when("the AI generates a daily summary")
 def ai_generates_daily_summary(ai_context: dict[str, Any]) -> None:
     """AI generates daily summary."""
-    commits = ai_context.get("daily_commits", [])
-    if commits:
+    if commits := ai_context.get("daily_commits", []):
         # Identify theme
-        auth_count = sum(1 for c in commits if "auth" in c["message"].lower())
-        if auth_count >= 3:
+        auth_count = sum(1 for c in commits if AUTH_KEYWORD in c["message"].lower())
+        if auth_count >= MIN_AUTH_THRESHOLD:
             ai_context["identified_theme"] = "authentication"
-        
+
         ai_context["daily_summary"] = {
             "theme": ai_context.get("identified_theme", "general development"),
-            "narrative": "Coherent daily narrative",
+            "narrative": COHERENT_NARRATIVE,
             "progression": "Started → WIP → Completed → Tested → Fixed",
         }
 
@@ -275,13 +321,18 @@ def ai_generates_daily_summary(ai_context: dict[str, Any]) -> None:
 @when("the AI generates a weekly narrative")
 def ai_generates_weekly_narrative(ai_context: dict[str, Any]) -> None:
     """AI generates weekly narrative."""
-    summaries = ai_context.get("daily_summaries", [])
-    if summaries:
+    if summaries := ai_context.get("daily_summaries", []):
         # Identify focus
-        security_days = sum(1 for s in summaries if "security" in s["theme"].lower() or "authentication" in s["theme"].lower() or "oauth" in s["theme"].lower())
-        if security_days >= 2:
+        security_days = sum(
+            1
+            for s in summaries
+            if SECURITY_KEYWORD in s["theme"].lower()
+            or AUTHENTICATION_KEYWORD in s["theme"].lower()
+            or OAUTH_KEYWORD in s["theme"].lower()
+        )
+        if security_days >= MIN_RELATED_COUNT:
             ai_context["identified_focus"] = "security"
-        
+
         ai_context["weekly_narrative"] = {
             "focus": ai_context.get("identified_focus", "general development"),
             "story_arc": "Beginning → Middle → End",
@@ -315,14 +366,16 @@ def ai_analyzes_breaking_commits(ai_context: dict[str, Any]) -> None:
 def analyze_same_commits_again(ai_context: dict[str, Any]) -> None:
     """Analyze the same commits again."""
     # Check cache first
-    for commit in ai_context.get("cached_commits", []):
+    for _commit in ai_context.get("cached_commits", []):
         ai_context["cache_hits"] += 1
-    
+
     # No API calls if all cached
     if ai_context["cache_hits"] == len(ai_context.get("cached_commits", [])):
         ai_context["api_calls"] = 0
     else:
-        ai_context["api_calls"] = len(ai_context.get("cached_commits", [])) - ai_context["cache_hits"]
+        ai_context["api_calls"] = (
+            len(ai_context.get("cached_commits", [])) - ai_context["cache_hits"]
+        )
 
 
 @when("the AI processes them")
@@ -330,8 +383,8 @@ def ai_batch_processes(ai_context: dict[str, Any]) -> None:
     """AI processes commits in batches."""
     commits = ai_context["commits"]
     batch_size = 10
-    
-    for i in range(0, len(commits), batch_size):
+
+    for _i in range(0, len(commits), batch_size):
         ai_context["batch_count"] += 1
         # Simulate API call for batch
         if not ai_context.get("rate_limited"):
@@ -347,15 +400,17 @@ def generate_changelog(ai_context: dict[str, Any]) -> None:
         "Performance": "⚡",
         "Security": "🔒",
     }
-    
+
     ai_context["changelog"] = []
     for commit in ai_context.get("emoji_commits", []):
         emoji = emoji_map.get(commit["category"], "📝")
-        ai_context["changelog"].append({
-            "category": commit["category"],
-            "emoji": emoji,
-            "count": commit["commits"],
-        })
+        ai_context["changelog"].append(
+            {
+                "category": commit["category"],
+                "emoji": emoji,
+                "count": commit["commits"],
+            }
+        )
 
 
 @when("additional requests are made")
@@ -370,10 +425,10 @@ def additional_requests_with_rate_limit(ai_context: dict[str, Any]) -> None:
 def generate_summaries_with_context(ai_context: dict[str, Any]) -> None:
     """Generate summaries maintaining context."""
     commits = ai_context.get("related_commits", [])
-    
+
     # Recognize thread
-    search_commits = [c for c in commits if "search" in c["message"].lower()]
-    if len(search_commits) >= 3:
+    search_commits = [c for c in commits if SEARCH_KEYWORD in c["message"].lower()]
+    if len(search_commits) >= THREE_ITEMS:
         ai_context["recognized_thread"] = "search feature"
         ai_context["context_maintained"] = True
 
@@ -384,21 +439,21 @@ def tier1_extracts_quickly(ai_context: dict[str, Any]) -> None:
     """Verify Tier 1 extracts information quickly."""
     assert len(ai_context["tier1_results"]) == len(ai_context["commits"])
     for result in ai_context["tier1_results"]:
-        assert "category" in result
+        assert CATEGORY_KEY in result
 
 
 @then("Tier 2 should synthesize daily patterns")
 def tier2_synthesizes_patterns(ai_context: dict[str, Any]) -> None:
     """Verify Tier 2 synthesizes patterns."""
     assert len(ai_context["tier2_results"]) > 0
-    assert "pattern" in ai_context["tier2_results"][0].lower()
+    assert PATTERN_KEY in ai_context["tier2_results"][0].lower()
 
 
 @then("Tier 3 should generate narrative summaries")
 def tier3_generates_narratives(ai_context: dict[str, Any]) -> None:
     """Verify Tier 3 generates narratives."""
     assert len(ai_context["tier3_results"]) > 0
-    assert "narrative" in ai_context["tier3_results"][0].lower()
+    assert NARRATIVE_KEY in ai_context["tier3_results"][0].lower()
 
 
 @then("the results should maintain context across tiers")
@@ -419,14 +474,15 @@ def tolerant_parser_handles(ai_context: dict[str, Any]) -> None:
 @then("valid data should be extracted")
 def valid_data_extracted(ai_context: dict[str, Any]) -> None:
     """Verify valid data is extracted."""
-    assert "summary" in ai_context["parsed_data"]
-    assert "category" in ai_context["parsed_data"]
+    assert SUMMARY_KEY in ai_context["parsed_data"]
+    assert CATEGORY_KEY in ai_context["parsed_data"]
 
 
 @then("no crash should occur")
 def no_crash_occurs(ai_context: dict[str, Any]) -> None:
     """Verify no crash occurs."""
     # If we got here, no crash occurred
+    _ = ai_context  # Acknowledge parameter usage
     assert True
 
 
@@ -476,29 +532,30 @@ def impact_levels_appropriate(ai_context: dict[str, Any]) -> None:
 def security_issues_prioritized(ai_context: dict[str, Any]) -> None:
     """Verify security issues are prioritized."""
     security_commits = [
-        c for c in ai_context.get("categorized_commits", [])
-        if "security" in c["message"].lower()
+        c
+        for c in ai_context.get("categorized_commits", [])
+        if SECURITY_KEYWORD in c["message"].lower()
     ]
     for commit in security_commits:
-        assert ai_context["impact_levels"][commit["message"]] == "critical"
+        assert ai_context["impact_levels"][commit["message"]] == CRITICAL_PRIORITY
 
 
 @then("it should recognize the authentication theme")
 def recognize_auth_theme(ai_context: dict[str, Any]) -> None:
     """Verify authentication theme is recognized."""
-    assert ai_context.get("identified_theme") == "authentication"
+    assert ai_context.get("identified_theme") == AUTHENTICATION_KEYWORD
 
 
 @then("create a coherent narrative")
 def create_coherent_narrative(ai_context: dict[str, Any]) -> None:
     """Verify coherent narrative is created."""
-    assert ai_context["daily_summary"]["narrative"] == "Coherent daily narrative"
+    assert ai_context["daily_summary"]["narrative"] == COHERENT_NARRATIVE
 
 
 @then("identify the progression of work")
 def identify_work_progression(ai_context: dict[str, Any]) -> None:
     """Verify work progression is identified."""
-    assert "progression" in ai_context["daily_summary"]
+    assert PROGRESSION_KEY in ai_context["daily_summary"]
 
 
 @then("mention both features and fixes")
@@ -511,25 +568,25 @@ def mention_features_and_fixes(ai_context: dict[str, Any]) -> None:
 @then("it should identify the security focus")
 def identify_security_focus(ai_context: dict[str, Any]) -> None:
     """Verify security focus is identified."""
-    assert ai_context.get("identified_focus") == "security"
+    assert ai_context.get("identified_focus") == SECURITY_KEYWORD
 
 
 @then("create a story arc")
 def create_story_arc(ai_context: dict[str, Any]) -> None:
     """Verify story arc is created."""
-    assert "story_arc" in ai_context["weekly_narrative"]
+    assert STORY_ARC_KEY in ai_context["weekly_narrative"]
 
 
 @then("highlight major achievements")
 def highlight_achievements(ai_context: dict[str, Any]) -> None:
     """Verify major achievements are highlighted."""
-    assert len(ai_context["weekly_narrative"]["achievements"]) >= 2
+    assert len(ai_context["weekly_narrative"]["achievements"]) >= MIN_ACHIEVEMENTS_COUNT
 
 
 @then("provide stakeholder-friendly language")
 def stakeholder_friendly_language(ai_context: dict[str, Any]) -> None:
     """Verify stakeholder-friendly language."""
-    assert ai_context["weekly_narrative"]["language"] == "stakeholder-friendly"
+    assert ai_context["weekly_narrative"]["language"] == STAKEHOLDER_FRIENDLY_LANGUAGE
 
 
 @then("it should understand each language context")
@@ -546,7 +603,7 @@ def appropriate_technical_descriptions(ai_context: dict[str, Any]) -> None:
     """Verify appropriate technical descriptions."""
     for commit in ai_context.get("multilang_commits", []):
         analysis_key = f"analysis_{commit['file']}"
-        assert "technical_description" in ai_context[analysis_key]
+        assert TECHNICAL_DESCRIPTION_KEY in ai_context[analysis_key]
 
 
 @then("maintain accuracy across technologies")
@@ -555,10 +612,9 @@ def maintain_accuracy_across_tech(ai_context: dict[str, Any]) -> None:
     # All languages analyzed
     languages_analyzed = set()
     for commit in ai_context.get("multilang_commits", []):
-        analysis_key = f"analysis_{commit['file']}"
-        if analysis_key in ai_context:
+        if (analysis_key := f"analysis_{commit['file']}") in ai_context:
             languages_analyzed.add(ai_context[analysis_key]["language"])
-    
+
     expected_languages = {c["language"] for c in ai_context.get("multilang_commits", [])}
     assert languages_analyzed == expected_languages
 
@@ -697,7 +753,7 @@ def resume_when_limits_reset(ai_context: dict[str, Any]) -> None:
 @then("the AI should recognize the search feature thread")
 def recognize_search_thread(ai_context: dict[str, Any]) -> None:
     """Verify AI recognizes search feature thread."""
-    assert ai_context.get("recognized_thread") == "search feature"
+    assert ai_context.get("recognized_thread") == SEARCH_FEATURE_THREAD
 
 
 @then("maintain context across daily boundaries")

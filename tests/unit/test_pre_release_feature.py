@@ -15,7 +15,7 @@ import git
 import pytest
 import pytest_check as check
 
-from git_ai_reporter.cli import main
+from git_ai_reporter.cli import analyze
 from git_ai_reporter.models import Change
 from git_ai_reporter.models import CommitAnalysis
 from git_ai_reporter.services.gemini import GeminiClient
@@ -168,7 +168,7 @@ All notable changes to this project will be documented in this file.
         ):
 
             # Run with pre-release flag
-            main(
+            analyze(
                 repo_path=str(temp_path),
                 weeks=1,
                 start_date_str=None,
@@ -230,7 +230,7 @@ All notable changes to this project will be documented in this file.
         ):
 
             # Run with pre-release flag
-            main(
+            analyze(
                 repo_path=str(temp_path),
                 weeks=1,
                 start_date_str=None,
@@ -275,7 +275,7 @@ All notable changes to this project will be documented in this file.
         ):
 
             # Run without pre-release flag (normal mode)
-            main(
+            analyze(
                 repo_path=str(temp_path),
                 weeks=1,
                 start_date_str=None,

@@ -96,15 +96,29 @@ class TestCLIIntegration:
             check.equal(result.exit_code, 0)
             check.is_in("Usage:", result.stdout)
 
-        with allure.step("Verify key command options are displayed"):
+        with allure.step("Verify key commands and options are displayed"):
             # Check for key option names with more lenient matching
             # Strip ANSI escape sequences for cross-platform compatibility
             ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
             stdout_clean = ansi_escape.sub("", result.stdout).replace("\n", " ").replace("\r", " ")
-            check.is_in("--repo-path", stdout_clean)
-            check.is_in("--weeks", stdout_clean)
-            check.is_in("--start-date", stdout_clean)
-            allure.attach(result.stdout, "Help Command Output", allure.attachment_type.TEXT)
+
+            # Check for main commands - these should be in the main help
+            check.is_in("analyze", stdout_clean)
+            check.is_in("cache", stdout_clean)
+            check.is_in("config", stdout_clean)
+
+            # Test the analyze command help specifically for --repo-path
+            with allure.step("Test analyze command help for --repo-path"):
+                analyze_result = cli_runner.invoke(APP, ["analyze", "--help"])
+                check.equal(analyze_result.exit_code, 0)
+                analyze_clean = (
+                    ansi_escape.sub("", analyze_result.stdout).replace("\n", " ").replace("\r", " ")
+                )
+                check.is_in("--repo-path", analyze_clean)
+                check.is_in("--weeks", analyze_clean)
+                check.is_in("--start-date", analyze_clean)
+
+            allure.attach(result.stdout, "Main Help Command Output", allure.attachment_type.TEXT)
 
     @allure.story("CLI Commands")
     @allure.title("CLI version command placeholder validation")
@@ -180,6 +194,7 @@ class TestCLIIntegration:
                 result = cli_runner.invoke(
                     APP,
                     [
+                        "analyze",
                         "--repo-path",
                         str(temp_git_repo.working_dir),
                         "--weeks",
@@ -226,6 +241,7 @@ class TestCLIIntegration:
                 result = cli_runner.invoke(
                     APP,
                     [
+                        "analyze",
                         "--repo-path",
                         str(temp_git_repo.working_dir),
                         "--weeks",
@@ -235,9 +251,11 @@ class TestCLIIntegration:
 
         with allure.step("Verify error handling"):
             check.not_equal(result.exit_code, 0)
-            check.is_in("GEMINI_API_KEY", result.stdout)
+            # Check both stdout and stderr for the error message
+            combined_output = f"{result.stdout}\n{result.stderr if result.stderr else ''}"
+            check.is_in("GEMINI_API_KEY", combined_output)
             allure.attach(
-                result.stdout, "Missing API Key Error Output", allure.attachment_type.TEXT
+                combined_output, "Missing API Key Error Output", allure.attachment_type.TEXT
             )
 
     @allure.story("CLI Error Handling")
@@ -257,6 +275,7 @@ class TestCLIIntegration:
                 result = cli_runner.invoke(
                     APP,
                     [
+                        "analyze",
                         "--repo-path",
                         "/nonexistent/path",
                         "--weeks",
@@ -266,9 +285,11 @@ class TestCLIIntegration:
 
         with allure.step("Verify repository validation error"):
             check.not_equal(result.exit_code, 0)
-            check.is_in("Not a valid git repository", result.stdout)
+            # Check both stdout and stderr for the error message
+            combined_output = f"{result.stdout}\n{result.stderr if result.stderr else ''}"
+            check.is_in("Not a valid git repository", combined_output)
             allure.attach(
-                result.stdout, "Invalid Repository Path Error Output", allure.attachment_type.TEXT
+                combined_output, "Invalid Repository Path Error Output", allure.attachment_type.TEXT
             )
 
     @allure.story("CLI Configuration")
@@ -305,6 +326,7 @@ class TestCLIIntegration:
                         result = cli_runner.invoke(
                             APP,
                             [
+                                "analyze",
                                 "--repo-path",
                                 str(temp_git_repo.working_dir),
                                 "--weeks",
@@ -362,6 +384,7 @@ class TestCLIIntegration:
                     result = cli_runner.invoke(
                         APP,
                         [
+                            "analyze",
                             "--repo-path",
                             str(temp_git_repo.working_dir),
                             "--weeks",
@@ -431,6 +454,7 @@ class TestCLIIntegration:
                         result = cli_runner.invoke(
                             APP,
                             [
+                                "analyze",
                                 "--repo-path",
                                 str(temp_git_repo.working_dir),
                                 "--weeks",
@@ -482,6 +506,7 @@ class TestCLIIntegration:
                     result = cli_runner.invoke(
                         APP,
                         [
+                            "analyze",
                             "--repo-path",
                             str(temp_git_repo.working_dir),
                             "--weeks",
@@ -516,23 +541,40 @@ class TestCLIIntegration:
         temp_git_repo: git.Repo,  # pylint: disable=redefined-outer-name
     ) -> None:
         """Test that the CLI properly handles async execution."""
-        with allure.step("Setup async execution mock"):
+        with allure.step("Setup async execution mock and dependencies"):
             mock_asyncio_run.return_value = None
 
-        with allure.step("Execute CLI to trigger async operations"):
-            with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
-                result = cli_runner.invoke(
-                    APP,
-                    [
-                        "--repo-path",
-                        str(temp_git_repo.working_dir),
-                        "--weeks",
-                        "1",
-                    ],
+            # Mock the orchestrator and its dependencies to avoid validation issues
+            with patch("git_ai_reporter.cli.AnalysisOrchestrator") as mock_orchestrator:
+                mock_instance = MagicMock()
+                mock_instance.run = AsyncMock(return_value=None)
+                # Mock the git_analyzer with proper class for Pydantic validation
+                mock_git_analyzer = MagicMock()
+                mock_git_analyzer.get_first_commit_date.return_value = datetime(
+                    2025, 1, 1, tzinfo=timezone.utc
                 )
+                # Set up class for Pydantic validation
+                mock_git_analyzer.__class__ = GitAnalyzer
+                mock_instance.services = MagicMock()
+                mock_instance.services.git_analyzer = mock_git_analyzer
+                mock_orchestrator.return_value = mock_instance
+
+                with allure.step("Execute CLI to trigger async operations"):
+                    with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+                        result = cli_runner.invoke(
+                            APP,
+                            [
+                                "analyze",  # Use explicit analyze command
+                                "--repo-path",
+                                str(temp_git_repo.working_dir),
+                                "--weeks",
+                                "1",
+                            ],
+                        )
 
         with allure.step("Verify asyncio coordination"):
             # Verify asyncio.run was called
+            check.equal(result.exit_code, 0)
             mock_asyncio_run.assert_called_once()
             allure.attach(
                 f"asyncio.run called once as expected, CLI result: {result.exit_code}",
@@ -582,6 +624,7 @@ class TestCLIIntegration:
                     result = cli_runner.invoke(
                         APP,
                         [
+                            "analyze",
                             "--repo-path",
                             str(empty_repo.working_dir),
                             "--weeks",
@@ -633,6 +676,7 @@ class TestCLIIntegration:
             result = cli_runner.invoke(
                 APP,
                 [
+                    "analyze",
                     "--repo-path",
                     str(temp_git_repo.working_dir),
                     "--weeks",
@@ -684,6 +728,7 @@ class TestCLIIntegration:
             result = cli_runner.invoke(
                 APP,
                 [
+                    "analyze",
                     "--repo-path",
                     str(temp_git_repo.working_dir),
                     "--weeks",

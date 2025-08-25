@@ -1,0 +1,1 @@
+../../src/git_ai_reporter/prompt_fitting/PROMPT_FITTING.md

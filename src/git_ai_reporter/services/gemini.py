@@ -146,11 +146,11 @@ class GeminiClient:
         weekly_diff: str,
         history: str,
     ) -> str:
-        """🚨 CLAUDE.md COMPLIANT: Constructs weekly prompt using data-preserving fitting.
+        """PROJECT COMPLIANT: Constructs weekly prompt using data-preserving fitting.
 
         CRITICAL: This method NEVER trims or loses data. Instead, it uses the
         PromptFitter system to preserve 100% data integrity through overlapping
-        chunks and hierarchical processing as required by CLAUDE.md.
+        chunks and hierarchical processing as required by the project.
         """
         # Construct the initial prompt
         prompt_parts = {
@@ -320,10 +320,10 @@ class GeminiClient:
             diff, ContentType.GIT_DIFF, target_tokens=self._config.input_token_limit_tier1
         )
 
-        # Verify data integrity as required by CLAUDE.md
+        # Verify data integrity as required by the project
         if not fitting_result.data_preserved:
             raise GeminiClientError(
-                "CLAUDE.md violation: Prompt fitting failed to preserve 100% of diff data"
+                "Project violation: Prompt fitting failed to preserve 100% of diff data"
             )
 
         if self._debug:
@@ -417,7 +417,7 @@ class GeminiClient:
 
         If the initial prompt exceeds the token limit, this method uses the
         data-preserving prompt fitting system to ensure 100% of diff content
-        is analyzed through overlapping chunks, as required by CLAUDE.md.
+        is analyzed through overlapping chunks, as required by the project.
 
         Args:
             diff: The raw text of a git diff.
@@ -741,7 +741,7 @@ class GeminiClient:
 
         CRITICAL: This method MUST NOT sample or discard ANY commit information.
         Instead, it signals that the content needs overlapping chunk processing
-        to maintain 100% data preservation as required by CLAUDE.md.
+        to maintain 100% data preservation as required by the project.
         """
         lines = log_content.split("\n")
         if len(lines) <= MAX_LOG_REDUCTION_LINES:  # If already small, don't reduce

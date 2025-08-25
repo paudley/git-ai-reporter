@@ -16,7 +16,7 @@ from typing import Final, Literal
 # DATA INTEGRITY AND PRESERVATION CONSTANTS
 # =============================================================================
 
-# CLAUDE.md mandates 100% data preservation
+# Project mandates 100% data preservation
 REQUIRED_DATA_PRESERVATION_RATE: Final[float] = 100.0
 MAX_DATA_PRESERVATION_RATE: Final[float] = 100.0
 PERFECT_SUCCESS_RATE: Final[float] = 100.0

@@ -4,7 +4,7 @@
 """Comprehensive validation framework for data integrity enforcement.
 
 This module provides sophisticated validation capabilities to ensure 100%
-data preservation across all prompt fitting operations, as required by CLAUDE.md.
+data preservation across all prompt fitting operations, as required by the project.
 """
 
 from dataclasses import dataclass
@@ -53,7 +53,7 @@ class ValidationResult:
     def raise_if_invalid(self) -> None:
         """Raise DataIntegrityViolationError if validation failed.
 
-        This method enforces the CLAUDE.md requirement for 100% data integrity
+        This method enforces the project requirement for 100% data integrity
         by raising an exception if any data loss is detected.
         """
         if not self.is_valid:
@@ -71,7 +71,7 @@ class DataIntegrityValidator:
 
     This validator implements multiple validation strategies to ensure that
     fitted content preserves 100% of the original information, as mandated
-    by CLAUDE.md requirements.
+    by project requirements.
     """
 
     def __init__(self, strict_mode: bool = True, min_coverage: float = 100.0):

@@ -3,10 +3,7 @@
 
 """Unit tests for commit filtering logic."""
 
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import allure
 import git
@@ -43,7 +40,7 @@ class TestCommitFiltering:
         """Test that commits with 'test:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "test: Add comprehensive unit tests for authentication"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Test commits should not be marked as trivial"
 
@@ -53,7 +50,7 @@ class TestCommitFiltering:
         """Test that commits with 'refactor:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "refactor: Improve database query performance"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Refactor commits should not be marked as trivial"
 
@@ -63,7 +60,7 @@ class TestCommitFiltering:
         """Test that commits with 'ci:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "ci: Add GitHub Actions workflow for automated testing"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "CI commits should not be marked as trivial"
 
@@ -73,7 +70,7 @@ class TestCommitFiltering:
         """Test that commits with 'docs:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "docs: Update API documentation with new endpoints"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Documentation commits should not be marked as trivial"
 
@@ -83,7 +80,7 @@ class TestCommitFiltering:
         """Test that commits with 'style:' prefix are still marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "style: Format code with prettier"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert result, "Style-only commits should be marked as trivial"
 
@@ -93,7 +90,7 @@ class TestCommitFiltering:
         """Test that commits with 'chore:' prefix are marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "chore: Update .gitignore"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert result, "Chore commits should be marked as trivial"
 
@@ -103,7 +100,7 @@ class TestCommitFiltering:
         """Test that commits with 'feat:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "feat: Add user authentication system"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Feature commits should never be marked as trivial"
 
@@ -113,7 +110,7 @@ class TestCommitFiltering:
         """Test that commits with 'fix:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "fix: Resolve memory leak in image processing"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Bug fix commits should never be marked as trivial"
 
@@ -124,7 +121,7 @@ class TestCommitFiltering:
         mock_diff = MagicMock()
         mock_diff.a_path = "README.md"
         mock_diff.b_path = "README.md"
-        
+
         diffs = [mock_diff]
         result = git_analyzer._is_trivial_by_file_paths(diffs)
         assert not result, "Markdown files should not be marked as trivial"
@@ -136,14 +133,14 @@ class TestCommitFiltering:
         mock_diff1 = MagicMock()
         mock_diff1.a_path = "pyproject.toml"
         mock_diff1.b_path = "pyproject.toml"
-        
+
         mock_diff2 = MagicMock()
         mock_diff2.a_path = "setup.cfg"
         mock_diff2.b_path = "setup.cfg"
-        
+
         result1 = git_analyzer._is_trivial_by_file_paths([mock_diff1])
         result2 = git_analyzer._is_trivial_by_file_paths([mock_diff2])
-        
+
         assert not result1, "TOML config files should not be marked as trivial"
         assert not result2, "CFG config files should not be marked as trivial"
 
@@ -154,7 +151,7 @@ class TestCommitFiltering:
         mock_diff = MagicMock()
         mock_diff.a_path = ".gitignore"
         mock_diff.b_path = ".gitignore"
-        
+
         diffs = [mock_diff]
         result = git_analyzer._is_trivial_by_file_paths(diffs)
         assert result, ".gitignore files should be marked as trivial"
@@ -166,14 +163,16 @@ class TestCommitFiltering:
         mock_diff1 = MagicMock()
         mock_diff1.a_path = ".gitignore"
         mock_diff1.b_path = ".gitignore"
-        
+
         mock_diff2 = MagicMock()
         mock_diff2.a_path = "src/main.py"
         mock_diff2.b_path = "src/main.py"
-        
+
         diffs = [mock_diff1, mock_diff2]
         result = git_analyzer._is_trivial_by_file_paths(diffs)
-        assert not result, "Commits with at least one non-trivial file should not be marked as trivial"
+        assert (
+            not result
+        ), "Commits with at least one non-trivial file should not be marked as trivial"
 
     @allure.title("Performance commits are not filtered")
     @allure.description("Verify that performance optimization commits are processed")
@@ -181,7 +180,7 @@ class TestCommitFiltering:
         """Test that commits with 'perf:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "perf: Optimize database query performance"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Performance commits should not be marked as trivial"
 
@@ -191,6 +190,6 @@ class TestCommitFiltering:
         """Test that commits with 'build:' prefix are not marked as trivial."""
         mock_commit = MagicMock(spec=git.Commit)
         mock_commit.message = "build: Update dependencies to latest versions"
-        
+
         result = git_analyzer._is_trivial_by_message(mock_commit)
         assert not result, "Build commits should not be marked as trivial"

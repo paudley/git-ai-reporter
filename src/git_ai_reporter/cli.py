@@ -15,7 +15,9 @@ import asyncio
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+import os
 from pathlib import Path
+import shutil
 import tomllib
 from typing import Final
 
@@ -27,6 +29,7 @@ from pydantic import BaseModel
 from rich.console import Console
 import typer
 
+from git_ai_reporter import __version__
 from git_ai_reporter.analysis.git_analyzer import GitAnalyzer
 from git_ai_reporter.analysis.git_analyzer import GitAnalyzerConfig
 from git_ai_reporter.cache import CacheManager
@@ -82,7 +85,32 @@ class MainFunctionParams(BaseModel):
 # Constants for history generation detection
 MIN_NEWS_CONTENT_LENGTH: Final = 100
 MIN_NEWS_LINE_COUNT: Final = 5
-APP: Final = typer.Typer()
+
+# Configuration status constants
+CONFIG_SET_STATUS: Final = "Set"
+CONFIG_NOT_SET_STATUS: Final = "Not set"
+
+# Version information is imported at the top
+
+APP: Final = typer.Typer(
+    name="git-ai-reporter",
+    help="AI-Driven Git Repository Analysis and Narrative Generation",
+    add_completion=True,
+    rich_markup_mode="rich",
+    pretty_exceptions_show_locals=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    no_args_is_help=False,  # Allow running without args
+    epilog="[bold]For more information:[/bold] https://github.com/paudley/git-ai-reporter",
+)
+
+
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        CONSOLE.print(
+            f"[bold green]git-ai-reporter[/bold green] version [cyan]{__version__}[/cyan]"
+        )
+        raise typer.Exit()
 
 
 # --- Helper Functions for CLI Setup ---
@@ -325,34 +353,85 @@ def _run_analysis(
 
 
 # --- Main Application Logic ---
-@APP.command()
-def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-    repo_path: str = typer.Option(".", "--repo-path", help="Path to the Git repository."),
-    weeks: int = typer.Option(4, "--weeks", help="Number of past weeks to analyze."),
+@APP.command("analyze", help="Analyze repository and generate documentation")
+def analyze(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    repo_path: str = typer.Option(
+        ".",
+        "--repo-path",
+        "-r",
+        help="Path to the Git repository.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+        rich_help_panel="Repository Configuration",
+    ),
+    weeks: int = typer.Option(
+        4,
+        "--weeks",
+        "-w",
+        min=1,
+        max=52,
+        help="Number of past weeks to analyze.",
+        rich_help_panel="Time Range",
+    ),
     start_date_str: str | None = typer.Option(
-        None, "--start-date", help="Start date in YYYY-MM-DD format. Overrides --weeks."
+        None,
+        "--start-date",
+        "-s",
+        help="Start date in YYYY-MM-DD format. Overrides --weeks.",
+        rich_help_panel="Time Range",
     ),
     end_date_str: str | None = typer.Option(
-        None, "--end-date", help="End date in YYYY-MM-DD format. Defaults to now."
+        None,
+        "--end-date",
+        "-e",
+        help="End date in YYYY-MM-DD format. Defaults to now.",
+        rich_help_panel="Time Range",
     ),
     config_file: str | None = typer.Option(
-        None, "--config-file", help="Path to a TOML configuration file."
+        None,
+        "--config-file",
+        "-c",
+        help="Path to a TOML configuration file.",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        resolve_path=True,
+        rich_help_panel="Configuration",
     ),
     cache_dir: str = typer.Option(
-        ".git-report-cache", "--cache-dir", help="Path to the cache directory."
+        ".git-report-cache",
+        "--cache-dir",
+        help="Path to the cache directory.",
+        rich_help_panel="Configuration",
     ),
     no_cache: bool = typer.Option(
-        False, "--no-cache", help="Ignore existing cache and re-analyze everything."
+        False,
+        "--no-cache",
+        help="Ignore existing cache and re-analyze everything.",
+        rich_help_panel="Configuration",
     ),
     debug: bool = typer.Option(
         False,
         "--debug",
+        "-d",
         help="Enable debug mode with verbose logging and no progress bars.",
+        rich_help_panel="Output Options",
     ),
     pre_release: str | None = typer.Option(
         None,
         "--pre-release",
         help="Generate release documentation for the specified version. Formats content as if the release has already happened (e.g., '1.2.3').",
+        rich_help_panel="Output Options",
+    ),
+    version: bool = typer.Option(  # pylint: disable=unused-argument
+        False,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
     ),
 ) -> None:
     """Generates AI-powered development summaries for a Git repository.
@@ -373,6 +452,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         debug: Enable verbose logging and disable progress bars.
         pre_release: Version string for pre-release documentation generation.
             Formats content as if the release has already happened.
+        version: If True, show version information and exit.
     """
     repo_params = RepositoryParams(repo_path=repo_path)
     time_params = TimeRangeParams(
@@ -391,5 +471,163 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     _run_analysis(repo_params, time_params, app_config)
 
 
-if __name__ == "__main__":
+@APP.command("cache", help="Manage cache operations")
+def cache_command(
+    clear: bool = typer.Option(
+        False,
+        "--clear",
+        help="Clear all cached data",
+        rich_help_panel="Actions",
+    ),
+    show: bool = typer.Option(
+        False,
+        "--show",
+        help="Show cache statistics",
+        rich_help_panel="Actions",
+    ),
+    cache_dir: str = typer.Option(
+        ".git-report-cache",
+        "--cache-dir",
+        help="Path to the cache directory.",
+        rich_help_panel="Configuration",
+    ),
+) -> None:
+    """Manage the analysis cache.
+
+    This command allows you to clear or inspect the cache used by git-ai-reporter
+    to store API responses and analysis results.
+    """
+    cache_path = Path(cache_dir)
+
+    if show:
+        if cache_path.exists():
+            cache_size = sum(f.stat().st_size for f in cache_path.rglob("*") if f.is_file())
+            cache_files = len(list(cache_path.rglob("*")))
+            CONSOLE.print("[bold]Cache Statistics:[/bold]")
+            CONSOLE.print(f"  Location: [cyan]{cache_path.absolute()}[/cyan]")
+            CONSOLE.print(f"  Files: [green]{cache_files}[/green]")
+            CONSOLE.print(f"  Size: [yellow]{cache_size / (1024 * 1024):.2f} MB[/yellow]")
+        else:
+            CONSOLE.print("[yellow]No cache directory found.[/yellow]")
+
+    if clear:
+        if cache_path.exists():
+            shutil.rmtree(cache_path)
+            CONSOLE.print(f"[green]✓[/green] Cache cleared at [cyan]{cache_path}[/cyan]")
+        else:
+            CONSOLE.print("[yellow]No cache to clear.[/yellow]")
+
+    if not clear and not show:
+        CONSOLE.print("[yellow]Please specify --clear or --show[/yellow]")
+        raise typer.Exit(1)
+
+
+@APP.command("config", help="Show configuration information")
+def config_command(
+    show_env: bool = typer.Option(
+        False,
+        "--env",
+        help="Show environment variables",
+        rich_help_panel="Options",
+    ),
+    validate: bool = typer.Option(
+        False,
+        "--validate",
+        help="Validate configuration",
+        rich_help_panel="Options",
+    ),
+) -> None:
+    """Display and validate configuration settings.
+
+    This command shows the current configuration settings and can validate
+    that all required settings are properly configured.
+    """
+    CONSOLE.print("[bold]Git AI Reporter Configuration[/bold]\n")
+
+    if show_env:
+        CONSOLE.print("[bold cyan]Environment Variables:[/bold cyan]")
+        env_vars = {
+            "GEMINI_API_KEY": (
+                CONFIG_SET_STATUS if os.getenv("GEMINI_API_KEY") else CONFIG_NOT_SET_STATUS
+            ),
+            "GIT_AI_REPORTER_CONFIG": os.getenv("GIT_AI_REPORTER_CONFIG", CONFIG_NOT_SET_STATUS),
+            "GIT_AI_REPORTER_CACHE": os.getenv("GIT_AI_REPORTER_CACHE", CONFIG_NOT_SET_STATUS),
+        }
+        for key, value in env_vars.items():
+            status = "[green]✓[/green]" if value != CONFIG_NOT_SET_STATUS else "[red]✗[/red]"
+            CONSOLE.print(f"  {status} {key}: {value}")
+
+    if validate:
+        CONSOLE.print("\n[bold cyan]Configuration Validation:[/bold cyan]")
+        try:
+            settings = Settings()
+            if settings.GEMINI_API_KEY:
+                CONSOLE.print("  [green]✓[/green] Gemini API key configured")
+            else:
+                CONSOLE.print("  [red]✗[/red] Gemini API key missing")
+                raise typer.Exit(1)
+
+            CONSOLE.print("  [green]✓[/green] All settings valid")
+        except Exception as e:
+            CONSOLE.print(f"  [red]✗[/red] Configuration error: {e}")
+            raise typer.Exit(1)
+
+    if not show_env and not validate:
+        # Show basic info
+        try:
+            settings = Settings()
+            CONSOLE.print("[bold]Model Configuration:[/bold]")
+            CONSOLE.print(f"  Tier 1: [cyan]{settings.MODEL_TIER_1}[/cyan]")
+            CONSOLE.print(f"  Tier 2: [cyan]{settings.MODEL_TIER_2}[/cyan]")
+            CONSOLE.print(f"  Tier 3: [cyan]{settings.MODEL_TIER_3}[/cyan]")
+            CONSOLE.print("\n[bold]Output Files:[/bold]")
+            CONSOLE.print(f"  News: [cyan]{settings.NEWS_FILE}[/cyan]")
+            CONSOLE.print(f"  Changelog: [cyan]{settings.CHANGELOG_FILE}[/cyan]")
+            CONSOLE.print(f"  Daily Updates: [cyan]{settings.DAILY_UPDATES_FILE}[/cyan]")
+        except Exception as e:
+            CONSOLE.print(f"[red]Error loading configuration: {e}[/red]")
+            raise typer.Exit(1)
+
+
+@APP.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(  # pylint: disable=unused-argument
+        False,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
+) -> None:
+    """Git AI Reporter - Transform your Git history into intelligent documentation.
+
+    When run without a subcommand, analyzes the current directory with default settings.
+    """
+    if ctx.invoked_subcommand is None:
+        # No subcommand provided, run analyze with defaults
+        CONSOLE.print(
+            "[dim]No command specified, running 'analyze' on current directory...[/dim]\n"
+        )
+        analyze(
+            repo_path=".",
+            weeks=4,
+            start_date_str=None,
+            end_date_str=None,
+            config_file=None,
+            cache_dir=".git-report-cache",
+            no_cache=False,
+            debug=False,
+            pre_release=None,
+            version=False,
+        )
+
+
+def main() -> None:
+    """Entry point for the CLI application."""
     APP()
+
+
+if __name__ == "__main__":
+    main()
