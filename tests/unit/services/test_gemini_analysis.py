@@ -20,7 +20,6 @@ from httpx import ConnectError
 from pydantic import ValidationError
 import pytest
 import pytest_check as check
-
 # Import constants from basic test file
 from test_gemini_basic import EMPTY_RESPONSE_MSG
 from test_gemini_basic import EMPTY_RESPONSES_MSG

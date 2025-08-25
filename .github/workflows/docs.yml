@@ -63,7 +63,7 @@ jobs:
       - name: Install MkDocs and dependencies
         run: |
           uv venv
-          uv pip install -e ".[docs]"
+          uv pip install -e . --group docs
 
       - name: Build documentation
         run: |

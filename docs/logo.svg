@@ -13,13 +13,30 @@
    xmlns:cc="http://creativecommons.org/ns#"
    xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
-     id="defs10" />
+     id="defs10">
+    <style>
+      <![CDATA[
+        /* Default (light mode) colors */
+        .svg-content {
+          color: #24292f;
+        }
+        
+        /* Dark mode colors */
+        @media (prefers-color-scheme: dark) {
+          .svg-content {
+            color: #f0f6fc;
+          }
+        }
+      ]]>
+    </style>
+  </defs>
   <title
      id="title">git-ai-reporter logo</title>
   <desc
      id="desc">Chat bubble with a git-style branch merging into mainline; balanced report bars with equal lower lengths.</desc>
   <!-- Outline and graph use currentColor so it inherits from surrounding CSS. -->
   <g
+     class="svg-content"
      fill="none"
      stroke="currentColor"
      stroke-width="10"

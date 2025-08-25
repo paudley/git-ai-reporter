@@ -2,21 +2,7 @@
 
 <div align="center">
 
-<img src="docs/logo.svg" alt="Git AI Reporter Logo" width="200" height="200" style="color: #24292f;">
-
-<!-- For Dark Mode Support -->
-<style>
-@media (prefers-color-scheme: dark) {
-  img[alt="Git AI Reporter Logo"] {
-    color: #f0f6fc !important;
-  }
-}
-@media (prefers-color-scheme: light) {
-  img[alt="Git AI Reporter Logo"] {
-    color: #24292f !important;
-  }
-}
-</style>
+<img src="docs/logo.svg" alt="Git AI Reporter Logo" width="200" height="200">
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

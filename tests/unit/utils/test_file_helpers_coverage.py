@@ -11,9 +11,8 @@ from unittest.mock import patch
 import allure
 import pytest_check as check
 
-from git_ai_reporter.utils.file_helpers import (
-    _extract_string_values_from_json,
-)  # pylint: disable=import-private-name
+from git_ai_reporter.utils.file_helpers import \
+    _extract_string_values_from_json  # pylint: disable=import-private-name
 from git_ai_reporter.utils.file_helpers import extract_text_from_file
 
 

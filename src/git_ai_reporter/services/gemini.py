@@ -31,7 +31,6 @@ from git_ai_reporter.prompt_fitting.constants import MAX_CHUNK_PAIRS
 from git_ai_reporter.prompt_fitting.constants import MAX_LOG_REDUCTION_LINES
 from git_ai_reporter.prompt_fitting.prompt_fitting import OverlapRatio
 from git_ai_reporter.prompt_fitting.prompt_fitting import TokenCount
-
 # TokenCounter is only used for type hints in this module
 from git_ai_reporter.summaries import commit
 from git_ai_reporter.summaries import daily

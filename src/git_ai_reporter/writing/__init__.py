@@ -5,4 +5,4 @@
 
 from .artifact_writer import ArtifactWriter
 
-__all__ = ["ArtifactWriter"]
+__all__ = ['ArtifactWriter']
