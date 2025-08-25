@@ -84,48 +84,6 @@ class TestCommitSummaryPrompts:
             )
 
     @allure.story("Content Generation")
-    @allure.title("Triviality prompt is properly defined")
-    @allure.description(
-        "Validates that the triviality assessment prompt contains required elements"
-    )
-    @allure.severity(allure.severity_level.CRITICAL)
-    @allure.tag("prompts", "triviality", "assessment")
-    def test_triviality_prompt_exists(self) -> None:
-        """Test that the triviality prompt is defined."""
-        with allure.step("Verify triviality concept is mentioned"):
-            check.is_in("trivial", commit.TRIVIALITY_PROMPT.lower())
-        with allure.step("Verify required elements exist"):
-            check.is_in("{diff}", commit.TRIVIALITY_PROMPT)
-            check.is_in("true", commit.TRIVIALITY_PROMPT)
-            check.is_in("false", commit.TRIVIALITY_PROMPT)
-            allure.attach(
-                f"Prompt length: {len(commit.TRIVIALITY_PROMPT)}",
-                "Prompt Info",
-                allure.attachment_type.TEXT,
-            )
-
-    @allure.story("Content Generation")
-    @allure.title("Triviality prompt includes classification examples")
-    @allure.description(
-        "Validates that the triviality prompt provides clear examples of trivial vs non-trivial changes"
-    )
-    @allure.severity(allure.severity_level.NORMAL)
-    @allure.tag("prompts", "triviality", "examples")
-    def test_triviality_prompt_has_examples(self) -> None:
-        """Test that triviality prompt includes examples."""
-        with allure.step("Verify trivial/non-trivial examples exist"):
-            check.is_in("TRIVIAL changes", commit.TRIVIALITY_PROMPT)
-            check.is_in("NON-TRIVIAL changes", commit.TRIVIALITY_PROMPT)
-        with allure.step("Verify specific examples are mentioned"):
-            check.is_in("typos", commit.TRIVIALITY_PROMPT.lower())
-            check.is_in("bug", commit.TRIVIALITY_PROMPT.lower())
-            allure.attach(
-                "Examples verified: trivial/non-trivial classifications",
-                "Examples",
-                allure.attachment_type.TEXT,
-            )
-
-    @allure.story("Content Generation")
     @allure.title("Category list is properly formatted in prompt")
     @allure.description(
         "Validates that all commit categories are properly formatted within the prompt template"
@@ -467,7 +425,6 @@ class TestSummaryModuleIntegration:
         """Test that all prompt templates use Final typing."""
         with allure.step("Verify commit module attributes exist"):
             check.is_true(hasattr(commit, "PROMPT_TEMPLATE"))
-            check.is_true(hasattr(commit, "TRIVIALITY_PROMPT"))
         with allure.step("Verify daily and weekly module attributes exist"):
             check.is_true(hasattr(daily, "PROMPT_TEMPLATE"))
             check.is_true(hasattr(weekly, "PROMPT_TEMPLATE"))
@@ -486,7 +443,6 @@ class TestSummaryModuleIntegration:
         """Test that all prompts are string types."""
         with allure.step("Verify commit module prompts are strings"):
             check.is_instance(commit.PROMPT_TEMPLATE, str)
-            check.is_instance(commit.TRIVIALITY_PROMPT, str)
         with allure.step("Verify daily and weekly prompts are strings"):
             check.is_instance(daily.PROMPT_TEMPLATE, str)
             check.is_instance(weekly.PROMPT_TEMPLATE, str)
@@ -507,12 +463,11 @@ class TestSummaryModuleIntegration:
         """Test that all prompts have substantial content."""
         with allure.step("Verify commit prompt lengths meet requirements"):
             check.greater(len(commit.PROMPT_TEMPLATE), 1000)
-            check.greater(len(commit.TRIVIALITY_PROMPT), 100)
         with allure.step("Verify daily and weekly prompt lengths meet requirements"):
             check.greater(len(daily.PROMPT_TEMPLATE), 200)
             check.greater(len(weekly.PROMPT_TEMPLATE), 500)
             allure.attach(
-                f"Lengths - Commit: {len(commit.PROMPT_TEMPLATE)}, Triviality: {len(commit.TRIVIALITY_PROMPT)}, Daily: {len(daily.PROMPT_TEMPLATE)}, Weekly: {len(weekly.PROMPT_TEMPLATE)}",
+                f"Lengths - Commit: {len(commit.PROMPT_TEMPLATE)}, Daily: {len(daily.PROMPT_TEMPLATE)}, Weekly: {len(weekly.PROMPT_TEMPLATE)}",
                 "Content Lengths",
                 allure.attachment_type.TEXT,
             )
@@ -550,7 +505,6 @@ class TestSummaryModuleIntegration:
         with allure.step("Define expected placeholders for each template"):
             placeholders = [
                 ("{diff}", commit.PROMPT_TEMPLATE),
-                ("{diff}", commit.TRIVIALITY_PROMPT),
                 ("{full_log}", daily.PROMPT_TEMPLATE),
                 ("{daily_diff}", daily.PROMPT_TEMPLATE),
                 ("{history}", weekly.PROMPT_TEMPLATE),

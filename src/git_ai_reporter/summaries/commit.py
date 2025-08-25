@@ -143,32 +143,3 @@ Now, analyze the following diff and provide the JSON response.
 {{diff}}
 ```
 """
-
-TRIVIALITY_PROMPT: Final[
-    str
-] = """
-    You are an expert code reviewer. Your task is to determine if a commit is
-    "trivial". A trivial change is one that has no impact on the runtime
-    behavior of the application.
-
-    Examples of TRIVIAL changes:
-    - Reformatting code (style changes)
-    - Correcting typos in comments or documentation
-    - Adding comments
-    - Bumping a development dependency version
-
-    Examples of NON-TRIVIAL changes (even if small):
-    - Fixing a bug (even a one-character fix)
-    - Adding a new feature or endpoint
-    - Changing a default value or configuration
-    - Refactoring code for performance or clarity
-    - Bumping a production dependency version
-
-    Analyze the following diff. Based *only* on the rules above, is this
-    change trivial? Respond with only the word "true" or "false".
-
-    Diff:
-    ```diff
-    {diff}
-    ```
-"""
