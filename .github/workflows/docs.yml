@@ -45,26 +45,52 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-docs-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-docs-
-            ${{ runner.os }}-pip-
-
-      - name: Install uv
+      - name: Setup uv with caching
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
+      - name: Cache APT packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/docs.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Cache Cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}-oxipng
+          restore-keys: |
+            ${{ runner.os }}-cargo-oxipng-
+            ${{ runner.os }}-cargo-
+
+      - name: Setup Node.js with npm caching
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package*.json'
+
       - name: Install optimization tools
         run: |
+          # APT packages (cached)
           sudo apt-get update
           sudo apt-get install -y pngquant libjpeg-turbo-progs rustc cargo
-          cargo install oxipng
+          
+          # Rust cargo install (cached)
+          if ! command -v oxipng &> /dev/null; then
+            cargo install oxipng
+          fi
+          
+          # NPM packages (cached via setup-node)
           npm install -g svgo html-minifier-terser postcss postcss-cli uglify-js
 
       - name: Install MkDocs and dependencies
